@@ -65,6 +65,8 @@ private:
 
     std::vector<VkImageView> m_SwapChainImageViews;
 
+    VkPipelineLayout m_PipelineLayout;
+
     GLFWwindow* m_Window;
 
     std::string m_Name{"Vulkan"};
