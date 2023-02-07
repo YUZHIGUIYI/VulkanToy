@@ -5,6 +5,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -40,6 +41,8 @@ private:
 
     void createLogicalDevice();
 
+    void createSwapChain();
+
 private:
     VkInstance m_Instance;
 #ifdef TOY_DEBUG
@@ -50,6 +53,11 @@ private:
     VkDevice m_Device;
     VkQueue m_GraphicsQueue;
     VkQueue m_PresentQueue;
+
+    VkSwapchainKHR m_SwapChain;
+    std::vector<VkImage> m_SwapChainImages;
+    VkFormat m_SwapChainImageFormat;
+    VkExtent2D m_SwapChainExtent;
 
     GLFWwindow* m_Window;
 
