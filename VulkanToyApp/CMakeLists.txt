@@ -1,3 +1,8 @@
+message(STATUS "Run glslc to compile shaders ...")
+execute_process(COMMAND ${GLSLC_PROGRAM} ${CMAKE_CURRENT_LIST_DIR}/assets/shaders/shader_base.vert -o ${PROJECT_SOURCE_DIR}/bin/vert.spv)
+execute_process(COMMAND ${GLSLC_PROGRAM} ${CMAKE_CURRENT_LIST_DIR}/assets/shaders/shader_base.frag -o ${PROJECT_SOURCE_DIR}/bin/frag.spv)
+message(STATUS "compile shader OK")
+
 file(GLOB_RECURSE VulkanToyAppSrc CONFIGURE_DEPENDS *.h *.cpp)
 add_executable(Application ${VulkanToyAppSrc})
 

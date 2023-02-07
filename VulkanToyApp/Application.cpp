@@ -4,6 +4,7 @@
 
 #include "Application.h"
 #include "EntryPoint.h"
+#include "ToyUtils.h"
 
 #include <functional>
 #include <algorithm>
@@ -263,6 +264,21 @@ static bool isDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface)
     return indices.isComplete() && extensionsSupported && swapChainAdequate;
 }
 
+// Shader module
+static VkShaderModule createShaderModule(const std::vector<char>& code, VkDevice device)
+{
+    VkShaderModuleCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    createInfo.codeSize = code.size();
+    createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+
+    VkShaderModule shaderModule;
+    if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
+        throw std::runtime_error("failed to create shader module!");
+
+    return shaderModule;
+}
+
 HelloTriangleApplication::HelloTriangleApplication(const std::string &name)
     : m_Name(name)
 {
@@ -296,6 +312,8 @@ void HelloTriangleApplication::initVulkan()
     pickPhysicalDevice();
     createLogicalDevice();
     createSwapChain();
+    createImageViews();
+    createGraphicsPipeline();
 }
 
 void HelloTriangleApplication::mainLoop()
@@ -308,6 +326,11 @@ void HelloTriangleApplication::mainLoop()
 
 void HelloTriangleApplication::cleanup()
 {
+    for (auto imageView : m_SwapChainImageViews)
+    {
+        vkDestroyImageView(m_Device, imageView, nullptr);
+    }
+
     vkDestroySwapchainKHR(m_Device, m_SwapChain, nullptr);
     vkDestroyDevice(m_Device, nullptr);
 #ifdef TOY_DEBUG
@@ -421,12 +444,13 @@ void HelloTriangleApplication::createLogicalDevice()
         queueCreateInfos.push_back(queueCreateInfo);
     }
 
-    VkPhysicalDeviceFeatures deviceFeatures;
+    VkPhysicalDeviceFeatures deviceFeatures{};
 
     VkDeviceCreateInfo createInfo;
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
     createInfo.pQueueCreateInfos = queueCreateInfos.data();
+
     createInfo.pEnabledFeatures = &deviceFeatures;
 
     // Enable swap chain extensions
@@ -511,6 +535,57 @@ void HelloTriangleApplication::createSwapChain()
     m_SwapChainExtent = extent;
 }
 
+void HelloTriangleApplication::createImageViews()
+{
+    m_SwapChainImageViews.resize(m_SwapChainImages.size());
+
+    for (size_t i = 0; i < m_SwapChainImages.size(); ++i)
+    {
+        VkImageViewCreateInfo createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        createInfo.image = m_SwapChainImages[i];
+        createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        createInfo.format = m_SwapChainImageFormat;
+        createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        createInfo.subresourceRange.baseMipLevel = 0;
+        createInfo.subresourceRange.levelCount = 1;
+        createInfo.subresourceRange.baseArrayLayer = 0;
+        createInfo.subresourceRange.layerCount = 1;
+
+        if (vkCreateImageView(m_Device, &createInfo, nullptr, &m_SwapChainImageViews[i]) != VK_SUCCESS)
+            throw std::runtime_error("failed to create image views!");
+    }
+}
+
+void HelloTriangleApplication::createGraphicsPipeline()
+{
+    auto vertShaderCode = ToyUtils::readFile("vert.spv");
+    auto fragShaderCode = ToyUtils::readFile("frag.spv");
+
+    VkShaderModule vertShaderModule = createShaderModule(vertShaderCode, m_Device);
+    VkShaderModule fragShaderModule = createShaderModule(fragShaderCode, m_Device);
+
+    VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
+    vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    vertShaderStageInfo.module = vertShaderModule;
+    vertShaderStageInfo.pName = "main";
+
+    VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
+    fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    fragShaderStageInfo.module = fragShaderModule;
+    fragShaderStageInfo.pName = "main";
+
+    VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
+
+    vkDestroyShaderModule(m_Device, fragShaderModule, nullptr);
+    vkDestroyShaderModule(m_Device, vertShaderModule, nullptr);
+}
 
 
 

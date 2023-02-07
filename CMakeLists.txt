@@ -22,6 +22,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/bin)
 
 find_package(Vulkan REQUIRED)
 
+find_program(GLSLC_PROGRAM glslc REQUIRED)
+
 add_subdirectory(external/glfw)
 
 add_subdirectory(external/glm)

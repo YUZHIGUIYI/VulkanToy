@@ -43,6 +43,10 @@ private:
 
     void createSwapChain();
 
+    void createImageViews();
+
+    void createGraphicsPipeline();
+
 private:
     VkInstance m_Instance;
 #ifdef TOY_DEBUG
@@ -58,6 +62,8 @@ private:
     std::vector<VkImage> m_SwapChainImages;
     VkFormat m_SwapChainImageFormat;
     VkExtent2D m_SwapChainExtent;
+
+    std::vector<VkImageView> m_SwapChainImageViews;
 
     GLFWwindow* m_Window;
 
