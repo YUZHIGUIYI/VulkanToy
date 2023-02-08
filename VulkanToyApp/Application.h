@@ -61,6 +61,10 @@ private:
 
     void drawFrame();
 
+    void recreateSwapChain();
+
+    void cleanupSwapChain();
+
 private:
     VkInstance m_Instance;
 #ifdef TOY_DEBUG
@@ -98,6 +102,9 @@ private:
     GLFWwindow* m_Window;
 
     std::string m_Name{"Vulkan"};
+
+public:
+    bool m_FramebufferResized = false;
 };
 
 
