@@ -49,6 +49,8 @@ private:
 
     void createGraphicsPipeline();
 
+    void createFramebuffers();
+
 private:
     VkInstance m_Instance;
 #ifdef TOY_DEBUG
@@ -70,6 +72,10 @@ private:
     VkRenderPass m_RenderPass;
 
     VkPipelineLayout m_PipelineLayout;
+
+    VkPipeline m_GraphicsPipeline;
+
+    std::vector<VkFramebuffer> m_SwapChainFramebuffers;
 
     GLFWwindow* m_Window;
 
