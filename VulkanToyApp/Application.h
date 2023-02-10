@@ -57,6 +57,10 @@ private:
 
     void createTextureImage();
 
+    void createTextureImageView();
+
+    void createTextureSampler();
+
     void createVertexBuffer();
 
     void createIndexBuffer();
@@ -96,6 +100,8 @@ private:
 
     void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 
+    VkImageView createImageView(VkImage image, VkFormat format);
+
 private:
     VkInstance m_Instance;
 #ifdef TOY_DEBUG
@@ -129,6 +135,9 @@ private:
 
     VkImage m_TextureImage;
     VkDeviceMemory m_TextureImageMemory;
+
+    VkImageView m_TextureImageView;
+    VkSampler m_TextureSampler;
 
     VkBuffer m_VertexBuffer;
     VkDeviceMemory m_VertexBufferMemory;
