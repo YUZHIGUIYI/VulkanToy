@@ -11,7 +11,13 @@ target_link_libraries(Application PUBLIC glfw)
 target_link_libraries(Application PUBLIC glm::glm)
 
 target_include_directories(Application PUBLIC Vulkan_INCLUDE_DIRS)
+target_include_directories(Application PUBLIC ${STB_INCLUDE_PATH})
 
 if(VULKAN_TOY_DEBUG)
     target_compile_definitions(Application PUBLIC TOY_DEBUG)
 endif()
+
+add_custom_command(TARGET Application
+        POST_BUILD
+        COMMAND
+        ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/assets/textures ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/textures)

@@ -55,6 +55,8 @@ private:
 
     void createCommandPool();
 
+    void createTextureImage();
+
     void createVertexBuffer();
 
     void createIndexBuffer();
@@ -82,6 +84,17 @@ private:
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
     void updateUniformBuffer(uint32_t currentImage);
+
+    void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
+                        VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
+
+    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+
+    void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+
+    VkCommandBuffer beginSingleTimeCommands();
+
+    void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 
 private:
     VkInstance m_Instance;
@@ -113,6 +126,9 @@ private:
 
     VkCommandPool m_CommandPool;
     std::vector<VkCommandBuffer> m_CommandBuffers;
+
+    VkImage m_TextureImage;
+    VkDeviceMemory m_TextureImageMemory;
 
     VkBuffer m_VertexBuffer;
     VkDeviceMemory m_VertexBufferMemory;
