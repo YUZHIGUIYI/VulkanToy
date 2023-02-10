@@ -47,6 +47,8 @@ private:
 
     void createRenderPass();
 
+    void createDescriptorSetLayout();
+
     void createGraphicsPipeline();
 
     void createFramebuffers();
@@ -56,6 +58,12 @@ private:
     void createVertexBuffer();
 
     void createIndexBuffer();
+
+    void createUniformBuffers();
+
+    void createDescriptorPool();
+
+    void createDescriptorSets();
 
     void createCommandBuffers();
 
@@ -72,6 +80,8 @@ private:
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+
+    void updateUniformBuffer(uint32_t currentImage);
 
 private:
     VkInstance m_Instance;
@@ -93,6 +103,8 @@ private:
 
     VkRenderPass m_RenderPass;
 
+    VkDescriptorSetLayout m_DescriptorSetLayout;
+
     VkPipelineLayout m_PipelineLayout;
 
     VkPipeline m_GraphicsPipeline;
@@ -107,10 +119,17 @@ private:
     VkBuffer m_IndexBuffer;
     VkDeviceMemory m_IndexBufferMemory;
 
+    std::vector<VkBuffer> m_UniformBuffers;
+    std::vector<VkDeviceMemory> m_UniformBuffersMemory;
+    std::vector<void*> m_UniformBuffersMapped;
+
+    VkDescriptorPool m_DescriptorPool;
+    std::vector<VkDescriptorSet> m_DescriptorSets;
+
     std::vector<VkSemaphore> m_ImageAvailableSemaphore;
     std::vector<VkSemaphore> m_RenderFinishedSemaphore;
     std::vector<VkFence> m_InFlightFences;
-    size_t m_CurrentFrame = 0;
+    uint32_t m_CurrentFrame = 0;
 
     GLFWwindow* m_Window;
 
