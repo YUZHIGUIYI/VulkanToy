@@ -33,7 +33,7 @@ const std::vector<const char*> deviceExtensions{ VK_KHR_SWAPCHAIN_EXTENSION_NAME
 
 #ifdef TOY_DEBUG
     const std::vector<const char*> validationLayers{ "VK_LAYER_KHRONOS_validation" };
-    // Vulkan validation layers
+    // Vulkan validation layers - require all available validation layers
     static bool checkValidationLayerSupport()
     {
         uint32_t layerCount;
@@ -60,6 +60,7 @@ const std::vector<const char*> deviceExtensions{ VK_KHR_SWAPCHAIN_EXTENSION_NAME
 #endif
 
 // Information callback - extension list
+// Get debug information via VK_EXT_debug_utils extension
 static std::vector<const char*> getRequiredExtensions()
 {
     uint32_t glfwExtensionCount = 0;
@@ -78,6 +79,8 @@ static std::vector<const char*> getRequiredExtensions()
 static VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
                                         const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger)
 {
+    // Since vkCreateDebugUtilsMessengerEXT is an extension-function, we need to load it by ourselves
+    // Create a proxy function
     auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
     if (func != nullptr)
     {
@@ -90,15 +93,20 @@ static VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugU
 // Destroy function
 static void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
 {
+    // Since vkDestroyDebugUtilsMessengerEXT is an extension-function, we need to load it by ourselves
+    // Create a proxy function
     auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
     if (func != nullptr)
         func(instance, debugMessenger, pAllocator);
 }
 
+// Callback function to accept debug information
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType,
                                                     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
 {
-    std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+    // Only warnings and above message will be output
+    if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+        std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
 
     return VK_FALSE;
 }
@@ -212,7 +220,7 @@ struct QueueFamilyIndices
     }
 };
 
-// Queue family
+// Queue family - find the queue families that we need
 static QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface)
 {
     QueueFamilyIndices indices;
@@ -388,6 +396,12 @@ void HelloTriangleApplication::cleanup()
 {
     cleanupSwapChain();
 
+    vkFreeCommandBuffers(m_Device, m_CommandPool, static_cast<uint32_t>(m_CommandBuffers.size()), m_CommandBuffers.data());
+
+    vkDestroyPipeline(m_Device, m_GraphicsPipeline, nullptr);
+    vkDestroyPipelineLayout(m_Device, m_PipelineLayout, nullptr);
+    vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
+
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
     {
         vkDestroyBuffer(m_Device, m_UniformBuffers[i], nullptr);
@@ -444,6 +458,7 @@ void HelloTriangleApplication::createInstance()
     appInfo.pEngineName = "No_Engine";
     appInfo.engineVersion = VK_MAKE_VERSION(1, 3, 0);
     appInfo.apiVersion = VK_API_VERSION_1_3;
+    appInfo.pNext = nullptr;
 
     VkInstanceCreateInfo createInfo;
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -471,12 +486,13 @@ void HelloTriangleApplication::createInstance()
 
 void HelloTriangleApplication::setupDebugCallback()
 {
+    // Set vulkan to store callback function that accepts debug information
     VkDebugUtilsMessengerCreateInfoEXT createInfo;
     populateDebugMessengerCreateInfo(createInfo);
 
     if (CreateDebugUtilsMessengerEXT(m_Instance, &createInfo, nullptr, &m_DebugMessenger) != VK_SUCCESS)
     {
-        throw std::runtime_error("failed to set up debug messenger!");
+        throw std::runtime_error("Failed to set up debug messenger!");
     }
 }
 
@@ -1212,10 +1228,7 @@ void HelloTriangleApplication::recreateSwapChain()
 
     createSwapChain();
     createImageViews();
-    createRenderPass();
-    createGraphicsPipeline();
     createFramebuffers();
-    createCommandBuffers();
 }
 
 void HelloTriangleApplication::cleanupSwapChain()
@@ -1224,12 +1237,6 @@ void HelloTriangleApplication::cleanupSwapChain()
     {
         vkDestroyFramebuffer(m_Device, framebuffer, nullptr);
     }
-
-    vkFreeCommandBuffers(m_Device, m_CommandPool, static_cast<uint32_t>(m_CommandBuffers.size()), m_CommandBuffers.data());
-
-    vkDestroyPipeline(m_Device, m_GraphicsPipeline, nullptr);
-    vkDestroyPipelineLayout(m_Device, m_PipelineLayout, nullptr);
-    vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
 
     for (auto imageView : m_SwapChainImageViews)
     {
