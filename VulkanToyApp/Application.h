@@ -55,6 +55,8 @@ private:
 
     void createCommandPool();
 
+    void createDepthResources();
+
     void createTextureImage();
 
     void createTextureImageView();
@@ -100,7 +102,9 @@ private:
 
     void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 
-    VkImageView createImageView(VkImage image, VkFormat format);
+    VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT);
+
+    VkFormat findDepthFormat();
 
 private:
     VkInstance m_Instance;
@@ -132,6 +136,10 @@ private:
 
     VkCommandPool m_CommandPool;
     std::vector<VkCommandBuffer> m_CommandBuffers;
+
+    VkImage m_DepthImage;
+    VkDeviceMemory m_DepthImageMemory;
+    VkImageView m_DepthImageView;
 
     VkImage m_TextureImage;
     VkDeviceMemory m_TextureImageMemory;

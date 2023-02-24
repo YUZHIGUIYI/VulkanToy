@@ -1,7 +1,11 @@
-message(STATUS "Run glslc to compile shaders...")
-execute_process(COMMAND ${GLSLC_PROGRAM} ${CMAKE_CURRENT_LIST_DIR}/assets/shaders/shader_base.vert -o ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/vert.spv)
-execute_process(COMMAND ${GLSLC_PROGRAM} ${CMAKE_CURRENT_LIST_DIR}/assets/shaders/shader_base.frag -o ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/frag.spv)
-message(STATUS "Compile shader finished...")
+macro(CopyShaders target_name)
+    execute_process(COMMAND ${GLSLC_PROGRAM} ${CMAKE_CURRENT_LIST_DIR}/assets/shaders/shader_base.vert -o ${CMAKE_CURRENT_LIST_DIR}/assets/shaders/vert.spv)
+    execute_process(COMMAND ${GLSLC_PROGRAM} ${CMAKE_CURRENT_LIST_DIR}/assets/shaders/shader_base.frag -o ${CMAKE_CURRENT_LIST_DIR}/assets/shaders/frag.spv)
+    add_custom_command(TARGET ${target_name} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_LIST_DIR}/assets/shaders/vert.spv $<TARGET_FILE_DIR:${target_name}>)
+    add_custom_command(TARGET ${target_name} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_LIST_DIR}/assets/shaders/frag.spv $<TARGET_FILE_DIR:${target_name}>)
+endmacro(CopyShaders)
 
 file(GLOB_RECURSE VulkanToyAppSrc CONFIGURE_DEPENDS *.h *.cpp)
 add_executable(Application ${VulkanToyAppSrc})
@@ -17,7 +21,11 @@ if(VULKAN_TOY_DEBUG)
     target_compile_definitions(Application PUBLIC TOY_DEBUG)
 endif()
 
+message(STATUS "Run GLSLC to compile shaders...")
+CopyShaders(Application)
+message(STATUS "Compile shader finished...")
+
 add_custom_command(TARGET Application
         POST_BUILD
         COMMAND
-        ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/assets/textures ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/textures)
+        ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/assets/textures $<TARGET_FILE_DIR:Application>/textures)

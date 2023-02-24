@@ -6,3 +6,6 @@ build/
 lib/
 .idea/
 
+# Files
+*.spv
+
