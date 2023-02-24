@@ -13,6 +13,7 @@ add_executable(Application ${VulkanToyAppSrc})
 target_link_libraries(Application PUBLIC Vulkan::Vulkan)
 target_link_libraries(Application PUBLIC glfw)
 target_link_libraries(Application PUBLIC glm::glm)
+target_link_libraries(Application PUBLIC tinyobjloader)
 
 target_include_directories(Application PUBLIC Vulkan_INCLUDE_DIRS)
 target_include_directories(Application PUBLIC ${STB_INCLUDE_PATH})
@@ -29,3 +30,7 @@ add_custom_command(TARGET Application
         POST_BUILD
         COMMAND
         ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/assets/textures $<TARGET_FILE_DIR:Application>/textures)
+add_custom_command(TARGET Application
+        POST_BUILD
+        COMMAND
+        ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/assets/models $<TARGET_FILE_DIR:Application>/models)

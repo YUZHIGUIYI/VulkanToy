@@ -10,6 +10,8 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include "RendererData.h"
+
 int main(int argc, char** argv);
 
 class HelloTriangleApplication
@@ -62,6 +64,8 @@ private:
     void createTextureImageView();
 
     void createTextureSampler();
+
+    void loadModel();
 
     void createVertexBuffer();
 
@@ -163,6 +167,9 @@ private:
     std::vector<VkSemaphore> m_RenderFinishedSemaphore;
     std::vector<VkFence> m_InFlightFences;
     uint32_t m_CurrentFrame = 0;
+
+    std::vector<Vertex> m_Vertices;
+    std::vector<uint32_t> m_Indices;
 
     GLFWwindow* m_Window;
 
