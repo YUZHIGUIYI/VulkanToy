@@ -49,39 +49,35 @@ private:
 
     void createRenderPass();
 
-    void createDescriptorSetLayout();
+    void createComputeDescriptorSetLayout();
 
     void createGraphicsPipeline();
+
+    void createComputePipeline();
 
     void createFramebuffers();
 
     void createCommandPool();
 
-    void createDepthResources();
-
-    void createTextureImage();
-
-    void createTextureImageView();
-
-    void createTextureSampler();
-
-    void loadModel();
-
-    void createVertexBuffer();
-
-    void createIndexBuffer();
+    void createShaderStorageBuffers();
 
     void createUniformBuffers();
 
     void createDescriptorPool();
 
-    void createDescriptorSets();
+    void createComputeDescriptorSets();
 
     void createCommandBuffers();
 
+    void createComputeCommandBuffers();
+
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
+    void recordComputeCommandBuffer(VkCommandBuffer commandBuffer);
+
     void createSyncObjects();
+
+    void updateUniformBuffer(uint32_t currentImage);
 
     void drawFrame();
 
@@ -93,26 +89,11 @@ private:
 
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
-    void updateUniformBuffer(uint32_t currentImage);
-
-    void createImage(uint32_t width, uint32_t height, uint32_t  mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
-                        VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
-
-    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels = 1);
-
-    void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
-
     VkCommandBuffer beginSingleTimeCommands();
 
     void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT, uint32_t mipLevels = 1);
-
-    VkFormat findDepthFormat();
-
-    void generateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
-
-    void createColorResources();
 
 private:
     VkInstance m_Instance;
@@ -123,66 +104,49 @@ private:
     VkSurfaceKHR m_Surface;
     VkDevice m_Device;
     VkQueue m_GraphicsQueue;
+    VkQueue m_ComputeQueue;
     VkQueue m_PresentQueue;
 
     VkSwapchainKHR m_SwapChain;
     std::vector<VkImage> m_SwapChainImages;
     VkFormat m_SwapChainImageFormat;
     VkExtent2D m_SwapChainExtent;
-
     std::vector<VkImageView> m_SwapChainImageViews;
-
-    VkSampleCountFlagBits m_MsaaSamples{VK_SAMPLE_COUNT_1_BIT};
 
     VkRenderPass m_RenderPass;
 
-    VkDescriptorSetLayout m_DescriptorSetLayout;
-
     VkPipelineLayout m_PipelineLayout;
-
     VkPipeline m_GraphicsPipeline;
+
+    VkDescriptorSetLayout m_ComputeDescriptorSetLayout;
+    VkPipelineLayout m_ComputePipelineLayout;
+    VkPipeline m_ComputePipeline;
 
     std::vector<VkFramebuffer> m_SwapChainFramebuffers;
 
     VkCommandPool m_CommandPool;
     std::vector<VkCommandBuffer> m_CommandBuffers;
-
-    // For Msaa
-    VkImage m_ColorImage;
-    VkDeviceMemory m_ColorImageMemory;
-    VkImageView m_ColorImageView;
-
-    // For Depth
-    VkImage m_DepthImage;
-    VkDeviceMemory m_DepthImageMemory;
-    VkImageView m_DepthImageView;
-
-    uint32_t  m_MipLevels;
-    VkImage m_TextureImage;
-    VkDeviceMemory m_TextureImageMemory;
-
-    VkImageView m_TextureImageView;
-    VkSampler m_TextureSampler;
-
-    VkBuffer m_VertexBuffer;
-    VkDeviceMemory m_VertexBufferMemory;
-    VkBuffer m_IndexBuffer;
-    VkDeviceMemory m_IndexBufferMemory;
+    std::vector<VkCommandBuffer> m_ComputeCommandBuffers;
 
     std::vector<VkBuffer> m_UniformBuffers;
     std::vector<VkDeviceMemory> m_UniformBuffersMemory;
     std::vector<void*> m_UniformBuffersMapped;
 
+    std::vector<VkBuffer> m_ShaderStorageBuffers;
+    std::vector<VkDeviceMemory> m_ShaderStorageBuffersMemory;
+
     VkDescriptorPool m_DescriptorPool;
-    std::vector<VkDescriptorSet> m_DescriptorSets;
+    std::vector<VkDescriptorSet> m_ComputeDescriptorSets;
 
     std::vector<VkSemaphore> m_ImageAvailableSemaphore;
     std::vector<VkSemaphore> m_RenderFinishedSemaphore;
+    std::vector<VkSemaphore> m_ComputeFinishedSemaphores;
     std::vector<VkFence> m_InFlightFences;
+    std::vector<VkFence> m_ComputeInFlightFences;
     uint32_t m_CurrentFrame = 0;
 
-    std::vector<Vertex> m_Vertices;
-    std::vector<uint32_t> m_Indices;
+    float m_LastFrameTime = 0.0f;
+    double m_LastTime = 0.0;
 
     GLFWwindow* m_Window;
 
