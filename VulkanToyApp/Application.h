@@ -95,10 +95,10 @@ private:
 
     void updateUniformBuffer(uint32_t currentImage);
 
-    void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
+    void createImage(uint32_t width, uint32_t height, uint32_t  mipLevels, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
                         VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
 
-    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels = 1);
 
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
@@ -106,9 +106,11 @@ private:
 
     void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 
-    VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT);
+    VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT, uint32_t mipLevels = 1);
 
     VkFormat findDepthFormat();
+
+    void generateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
 
 private:
     VkInstance m_Instance;
@@ -145,6 +147,7 @@ private:
     VkDeviceMemory m_DepthImageMemory;
     VkImageView m_DepthImageView;
 
+    uint32_t  m_MipLevels;
     VkImage m_TextureImage;
     VkDeviceMemory m_TextureImageMemory;
 
