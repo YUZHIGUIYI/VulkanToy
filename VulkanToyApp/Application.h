@@ -95,7 +95,7 @@ private:
 
     void updateUniformBuffer(uint32_t currentImage);
 
-    void createImage(uint32_t width, uint32_t height, uint32_t  mipLevels, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
+    void createImage(uint32_t width, uint32_t height, uint32_t  mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
                         VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
 
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels = 1);
@@ -111,6 +111,8 @@ private:
     VkFormat findDepthFormat();
 
     void generateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
+
+    void createColorResources();
 
 private:
     VkInstance m_Instance;
@@ -130,6 +132,8 @@ private:
 
     std::vector<VkImageView> m_SwapChainImageViews;
 
+    VkSampleCountFlagBits m_MsaaSamples{VK_SAMPLE_COUNT_1_BIT};
+
     VkRenderPass m_RenderPass;
 
     VkDescriptorSetLayout m_DescriptorSetLayout;
@@ -143,6 +147,12 @@ private:
     VkCommandPool m_CommandPool;
     std::vector<VkCommandBuffer> m_CommandBuffers;
 
+    // For Msaa
+    VkImage m_ColorImage;
+    VkDeviceMemory m_ColorImageMemory;
+    VkImageView m_ColorImageView;
+
+    // For Depth
     VkImage m_DepthImage;
     VkDeviceMemory m_DepthImageMemory;
     VkImageView m_DepthImageView;
