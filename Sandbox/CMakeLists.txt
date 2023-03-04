@@ -10,30 +10,23 @@ macro(CopyShaders target_name)
         COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_LIST_DIR}/assets/shaders/comp.spv $<TARGET_FILE_DIR:${target_name}>)
 endmacro(CopyShaders)
 
-file(GLOB_RECURSE VulkanToyAppSrc CONFIGURE_DEPENDS *.h *.cpp)
-add_executable(Application ${VulkanToyAppSrc})
+file(GLOB_RECURSE SANDBOX_FILES CONFIGURE_DEPENDS include/*.h src/*.cpp)
 
-target_link_libraries(Application PUBLIC Vulkan::Vulkan)
-target_link_libraries(Application PUBLIC glfw)
-target_link_libraries(Application PUBLIC glm::glm)
-target_link_libraries(Application PUBLIC tinyobjloader)
+add_executable(Sandbox ${SANDBOX_FILES})
 
-target_include_directories(Application PUBLIC Vulkan_INCLUDE_DIRS)
-target_include_directories(Application PUBLIC ${STB_INCLUDE_PATH})
+target_link_libraries(Sandbox PUBLIC VulkanToy)
 
-if(VULKAN_TOY_DEBUG)
-    target_compile_definitions(Application PUBLIC TOY_DEBUG)
-endif()
+target_include_directories(Sandbox PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
 
 message(STATUS "Run GLSLC to compile shaders!")
-CopyShaders(Application)
+CopyShaders(Sandbox)
 message(STATUS "Compile shader finished!")
 
-add_custom_command(TARGET Application
+add_custom_command(TARGET Sandbox
         POST_BUILD
         COMMAND
-        ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/assets/textures $<TARGET_FILE_DIR:Application>/textures)
-add_custom_command(TARGET Application
+        ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/assets/textures $<TARGET_FILE_DIR:Sandbox>/textures)
+add_custom_command(TARGET Sandbox
         POST_BUILD
         COMMAND
-        ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/assets/models $<TARGET_FILE_DIR:Application>/models)
+        ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/assets/models $<TARGET_FILE_DIR:Sandbox>/models)

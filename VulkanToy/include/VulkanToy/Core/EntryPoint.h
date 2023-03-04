@@ -1,0 +1,20 @@
+//
+// Created by ZZK on 2023/3/1.
+//
+
+#pragma once
+
+#include <VulkanToy/Core/Application.h>
+
+int main(int argc, char** argv)
+{
+    VT::Log::Init();
+
+    auto app = VT::CreateApplication({ argc, argv });
+
+    app->Prepare();
+
+    app->Run();
+
+    delete app;
+}

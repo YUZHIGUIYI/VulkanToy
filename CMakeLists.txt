@@ -16,20 +16,13 @@ if(NOT CMAKE_EXPORT_COMPILE_COMMANDS)
     set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 endif()
 
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/bin)
 
-set(STB_INCLUDE_PATH ${CMAKE_CURRENT_LIST_DIR}/external/stb)
-
 find_package(Vulkan REQUIRED)
-
 find_program(GLSLC_PROGRAM glslc REQUIRED)
 
-add_subdirectory(external/glfw)
-
-add_subdirectory(external/glm)
-
-add_subdirectory(external/tinyobjloader)
-
-add_subdirectory(VulkanToyApp)
+include(cmake/AddThirdParties.cmake)
+add_subdirectory(VulkanToy)
+add_subdirectory(Sandbox)
