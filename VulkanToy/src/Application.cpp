@@ -22,6 +22,10 @@ namespace VT
         s_Instance = this;
         m_Window = Window::Create(WindowProps{name});
         m_Window->SetEventCallback(VT_BIND_EVENT_FN(Application::OnEvent));
+        int width, height;
+        glfwGetFramebufferSize((GLFWwindow*)(m_Window->GetNativeWindow()), &width, &height);
+        m_Width = static_cast<uint32_t>(width);
+        m_Height = static_cast<uint32_t>(height);
 
         // External
         m_Settings.validation = enableValidation;
@@ -69,11 +73,12 @@ namespace VT
 
         // TODO: Fix ImGui init
         m_ImGuiLayer = new ImGuiLayer();
-        //PushOverlay(m_ImGuiLayer);    // Make if after Prepare function()
     }
 
     Application::~Application()
     {
+        // Clean up imgui layer
+        m_ImGuiLayer->ImGuiCleanup();
         // External
         // Clean up Vulkan resources
         m_SwapChain.cleanup();
@@ -575,17 +580,12 @@ namespace VT
     {
         VkImageView attachments[2];
 
-        // Depth/Stencil attachment is the same for all frame buffers
-        attachments[1] = m_DepthStencil.view;
-
         VkFramebufferCreateInfo frameBufferCreateInfo{};
         frameBufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         frameBufferCreateInfo.pNext = nullptr;
         frameBufferCreateInfo.renderPass = m_RenderPass;
-        frameBufferCreateInfo.attachmentCount = 2;
-        frameBufferCreateInfo.pAttachments = attachments;
-        frameBufferCreateInfo.width = m_Window->GetWidth();
-        frameBufferCreateInfo.height = m_Window->GetHeight();
+        frameBufferCreateInfo.width = m_Width;
+        frameBufferCreateInfo.height = m_Height;
         frameBufferCreateInfo.layers = 1;
 
         // Create frame buffers for every swap chain image
@@ -593,7 +593,12 @@ namespace VT
         for (uint32_t i = 0; i < m_FrameBuffers.size(); i++)
         {
             attachments[0] = m_SwapChain.buffers[i].view;
-            vkCreateFramebuffer(m_Device, &frameBufferCreateInfo, nullptr, &m_FrameBuffers[i]);
+            // Depth/Stencil attachment is the same for all frame buffers
+            attachments[1] = m_DepthStencil.view;
+            frameBufferCreateInfo.attachmentCount = 2;
+            frameBufferCreateInfo.pAttachments = attachments;
+            if (vkCreateFramebuffer(m_Device, &frameBufferCreateInfo, nullptr, &m_FrameBuffers[i]) != VK_SUCCESS)
+                VT_CORE_ASSERT(false, "Fail to create frame buffer");
         }
     }
 
@@ -679,10 +684,15 @@ namespace VT
         if (!m_Prepared)
             return;
         m_Prepared = false;
-        m_Resized = true;
+        m_Resized = false;
 
         // Ensure all operations on the device have been finished before destroying resources
         vkDeviceWaitIdle(m_Device);
+
+        int width, height;
+        glfwGetFramebufferSize((GLFWwindow*)(m_Window->GetNativeWindow()), &width, &height);
+        m_Width = static_cast<uint32_t>(width);
+        m_Height = static_cast<uint32_t>(height);
 
         // Recreate swap chain
         // TODO: Window size
@@ -732,6 +742,7 @@ namespace VT
     void Application::WindowResized()
     {
         // TODO: Implement in client
+        WindowResize();
     }
 
     void Application::InitSwapchain()
@@ -742,7 +753,7 @@ namespace VT
 
     void Application::SetupSwapChain()
     {
-        m_SwapChain.create(m_Window->GetWidth(), m_Window->GetHeight(), m_Settings.vsync, m_Settings.fullscreen);
+        m_SwapChain.create(m_Width, m_Height, m_Settings.vsync, m_Settings.fullscreen);
     }
 
     void Application::PushLayer(Layer* layer)
@@ -764,32 +775,33 @@ namespace VT
 
     void Application::Run()
     {
+        PushOverlay(m_ImGuiLayer);
+
         while (m_Running)
         {
             auto time = static_cast<float>(glfwGetTime());
             Timestep timestep = time - m_LastFrameTime;
             m_LastFrameTime = time;
 
-            if (!m_Minimized)
+            for (auto layer : m_LayerStack)
             {
-                for (auto layer : m_LayerStack)
-                {
-                    layer->OnUpdate(timestep);
-                }
-
-                m_ImGuiLayer->Begin();
-                for (auto layer : m_LayerStack)
-                {
-                    layer->OnImGuiRender();
-                }
-                m_ImGuiLayer->End();
+                layer->OnUpdate(timestep);
             }
+
+            m_ImGuiLayer->Begin();
+            for (auto layer : m_LayerStack)
+            {
+                layer->OnImGuiRender();
+            }
+            m_ImGuiLayer->End();
 
             // TODO: separate
             RenderLoop();
 
             m_Window->OnUpdate();
         }
+
+        vkDeviceWaitIdle(m_Device);
     }
 
     void Application::OnEvent(Event &e)
@@ -809,21 +821,23 @@ namespace VT
 
     bool Application::OnWindowClose(WindowCloseEvent &e)
     {
+        VT_CORE_INFO("Close window");
         m_Running = false;
         return true;
     }
 
     bool Application::OnWindowResize(WindowResizeEvent &e)
     {
-        if (e.GetWidth() == 0 || e.GetHeight())
+        int width = 0, height = 0;
+        auto window = static_cast<GLFWwindow*>(m_Window->GetNativeWindow());
+        glfwGetFramebufferSize(window, &width, &height);
+        while (width == 0 || height == 0)
         {
-            m_Minimized = true;
-            return false;
+            glfwGetFramebufferSize(window, &width, &height);
+            glfwWaitEvents();
         }
 
-        m_Minimized = false;
-
-        WindowResize();
+        m_Resized = true;
 
         return false;
     }

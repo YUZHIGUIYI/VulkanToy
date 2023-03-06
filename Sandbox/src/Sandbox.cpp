@@ -236,8 +236,8 @@ public:
         clearValues[0].color = { { 0.1f, 0.1f, 0.1f, 1.0f } };
         clearValues[1].depthStencil = { 1.0f, 0 };
 
-        uint32_t width = GetWindow().GetWidth();
-        uint32_t height = GetWindow().GetHeight();
+        uint32_t width = m_Width;
+        uint32_t height = m_Height;
 
         VkRenderPassBeginInfo renderPassBeginInfo{};
         renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -317,8 +317,8 @@ public:
         clearValues[0].color = { { 0.1f, 0.1f, 0.1f, 1.0f } };
         clearValues[1].depthStencil = { 1.0f, 0 };
 
-        uint32_t width = GetWindow().GetWidth();
-        uint32_t height = GetWindow().GetHeight();
+        uint32_t width = m_Width;
+        uint32_t height = m_Height;
 
         VkRenderPassBeginInfo renderPassBeginInfo{};
         renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -336,16 +336,20 @@ public:
         // This will clear the color and depth attachment
         vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
+        // Bind the rendering pipeline
+        // The pipeline (state object) contains all states of the rendering pipeline, binding it will set all the states specified at pipeline creation time
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+
         // Update dynamic viewport state
         VkViewport viewport{};
         viewport.height = (float)height;
         viewport.width = (float)width;
-        viewport.minDepth = (float) 0.0f;
-        viewport.maxDepth = (float) 1.0f;
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
         vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
         // Update dynamic scissor state
-        VkRect2D scissor = {};
+        VkRect2D scissor{};
         scissor.extent.width = width;
         scissor.extent.height = height;
         scissor.offset.x = 0;
@@ -355,10 +359,6 @@ public:
         // Bind descriptor sets describing shader binding points
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
                                 0, 1, &descriptorSet, 0, nullptr);
-
-        // Bind the rendering pipeline
-        // The pipeline (state object) contains all states of the rendering pipeline, binding it will set all the states specified at pipeline creation time
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
         // Bind triangle vertex buffer (contains position and colors)
         VkDeviceSize offsets[1] = { 0 };
@@ -371,7 +371,7 @@ public:
         vkCmdDrawIndexed(commandBuffer, indices.count, 1, 0, 0, 1);
 
         // TODO: Fix record dear imgui primitives into command buffer
-        m_ImGuiLayer->ImGuiFrameRender(commandBuffer, imageIndex);
+        m_ImGuiLayer->ImGuiFrameRender(commandBuffer, pipeline);
 
         vkCmdEndRenderPass(commandBuffer);
 
@@ -379,22 +379,27 @@ public:
         // VK_IMAGE_LAYOUT_PRESENT_SRC_KHR for presenting it to the windowing system
 
         vkEndCommandBuffer(commandBuffer);
-
     }
 
     void Draw()
     {
+        // Use a fence to wait until the command buffer has finished execution before using it again
+        vkWaitForFences(m_Device, 1, &queueCompleteFences[m_CurrentBuffer], VK_TRUE, UINT64_MAX);
+
         // TODO: Fix
         // SRS - on other platforms use original bare code with local semaphores/fences for illustrative purposes
         // Get next image in the swap chain (back/front buffer)
         VkResult acquire = m_SwapChain.acquireNextImage(presentCompleteSemaphore, &m_CurrentBuffer);
-        if (!((acquire == VK_SUCCESS) || (acquire == VK_SUBOPTIMAL_KHR)))
+
+        if (acquire == VK_ERROR_OUT_OF_DATE_KHR)
+        {
+            WindowResized();
+            return;
+        } else if (!((acquire == VK_SUCCESS) || (acquire == VK_SUBOPTIMAL_KHR)))
         {
             VT_CORE_ASSERT(false, "Fail to acquire next image");
         }
 
-        // Use a fence to wait until the command buffer has finished execution before using it again
-        vkWaitForFences(m_Device, 1, &queueCompleteFences[m_CurrentBuffer], VK_TRUE, UINT64_MAX);
         vkResetFences(m_Device, 1, &queueCompleteFences[m_CurrentBuffer]);
 
         // TODO: Add
@@ -423,7 +428,11 @@ public:
         // Pass the semaphore signaled by the command buffer submission from the submit info as the wait semaphore for swap chain presentation
         // This ensures that the image is not presented to the windowing system until all commands have been submitted
         VkResult present = m_SwapChain.queuePresent(m_Queue, m_CurrentBuffer, renderCompleteSemaphore);
-        if (!((present == VK_SUCCESS) || (present == VK_SUBOPTIMAL_KHR))) {
+        if ((present == VK_ERROR_OUT_OF_DATE_KHR) || (present == VK_SUBOPTIMAL_KHR) || m_Resized)
+        {
+            WindowResized();
+        } else if (present != VK_SUCCESS)
+        {
             VT_CORE_ASSERT(false, "Fail to present the current buffer");
         }
     }
@@ -1137,9 +1146,6 @@ public:
         SetupDescriptorSet();
         BuildCommandBuffers();
         m_Prepared = true;
-
-        // Init ImGui layer
-        Application::PushOverlay(m_ImGuiLayer);
     }
 
     void Render() override

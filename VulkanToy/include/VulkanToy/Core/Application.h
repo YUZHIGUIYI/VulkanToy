@@ -39,6 +39,20 @@ namespace VT
         bool m_Resizing = false;
         std::string shaderDir = "glsl";
 
+    protected:
+        ImGuiLayer* m_ImGuiLayer;
+
+    private:
+        ApplicationCommandLineArgs m_CommandLineArgs;
+        Scope<Window> m_Window;
+        LayerStack m_LayerStack;
+
+        bool m_Running = true;
+
+        float m_LastFrameTime = 0.0f;
+
+        std::string m_Name;
+
     private:
         std::string GetWindowTitle();
 
@@ -153,7 +167,7 @@ namespace VT
         float m_TimerSpeed = 0.25f;
         bool m_Paused = false;
 
-        uint32_t m_ApiVersion = VK_API_VERSION_1_1;
+        uint32_t m_ApiVersion = VK_API_VERSION_1_3;
 
         struct {
             VkImage image;
@@ -234,20 +248,8 @@ namespace VT
         bool OnWindowClose(WindowCloseEvent& e);
         bool OnWindowResize(WindowResizeEvent& e);
 
-    protected:
-        ImGuiLayer* m_ImGuiLayer;
-
-    private:
-        ApplicationCommandLineArgs m_CommandLineArgs;
-        Scope<Window> m_Window;
-        LayerStack m_LayerStack;
-
-        bool m_Running = true;
-        bool m_Minimized = false;
-
-        float m_LastFrameTime = 0.0f;
-
-        std::string m_Name;
+    public:
+        uint32_t m_Width, m_Height;
 
     private:
         static Application* s_Instance;

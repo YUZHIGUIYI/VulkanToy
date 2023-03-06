@@ -31,28 +31,20 @@ namespace VT
 
     ImGuiLayer::~ImGuiLayer() noexcept
     {
+    }
+
+    void ImGuiLayer::ImGuiCleanup()
+    {
         ImGui_ImplVulkan_Shutdown();
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
-        // Release all Vulkan resources required for rendering imGui
-        m_VertexBuffer.destroy();
-        m_IndexBuffer.destroy();
-        vkDestroyImage(m_Device->logicalDevice, m_FontImage, nullptr);
-        vkDestroyImageView(m_Device->logicalDevice, m_FontView, nullptr);
-        vkFreeMemory(m_Device->logicalDevice, m_FontMemory, nullptr);
-        vkDestroySampler(m_Device->logicalDevice, m_Sampler, nullptr);
-        vkDestroyPipelineCache(m_Device->logicalDevice, m_PipelineCache, nullptr);
-        vkDestroyPipeline(m_Device->logicalDevice, m_Pipeline, nullptr);
-        vkDestroyPipelineLayout(m_Device->logicalDevice, m_PipelineLayout, nullptr);
-        vkDestroyDescriptorPool(m_Device->logicalDevice, m_DescriptorPool, nullptr);
-        vkDestroyDescriptorSetLayout(m_Device->logicalDevice, m_DescriptorSetLayout, nullptr);
+        VT_CORE_INFO("Free ImGui");
     }
 
     void ImGuiLayer::OnAttach()
     {
-        // TODO: Setup Dear ImGui context
+        // Setup Dear ImGui context
         Application& app = Application::Get();
-        m_Device = app.m_VulkanDevice;
 
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
@@ -81,21 +73,21 @@ namespace VT
         // Setup Platform/Renderer backends
         auto window = (GLFWwindow*)app.GetWindow().GetNativeWindow();
         ImGui_ImplGlfw_InitForVulkan(window, true);
-        ImGui_ImplVulkan_InitInfo init_info{};
-        init_info.Instance = app.m_Instance;
-        init_info.PhysicalDevice = app.m_PhysicalDevice;
-        init_info.Device = app.m_Device;
-        init_info.QueueFamily = app.m_VulkanDevice->queueFamilyIndices.graphics;
-        init_info.Queue = app.m_Queue;
-        init_info.PipelineCache = app.m_PipelineCache;
-        init_info.DescriptorPool = app.m_DescriptorPool;    // TODO: fix
-        init_info.Subpass = 0;
-        init_info.MinImageCount = app.m_SwapChain.minImageCount;   // TODO: fix
-        init_info.ImageCount = app.m_SwapChain.imageCount;
-        init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-        init_info.Allocator = nullptr;
-        init_info.CheckVkResultFn = CheckVkResult;
-        ImGui_ImplVulkan_Init(&init_info, app.m_RenderPass);
+        ImGui_ImplVulkan_InitInfo initInfo{};
+        initInfo.Instance = app.m_Instance;
+        initInfo.PhysicalDevice = app.m_PhysicalDevice;
+        initInfo.Device = app.m_Device;
+        initInfo.QueueFamily = app.m_VulkanDevice->queueFamilyIndices.graphics;
+        initInfo.Queue = app.m_Queue;
+        initInfo.PipelineCache = app.m_PipelineCache;
+        initInfo.DescriptorPool = app.m_DescriptorPool;    // TODO: fix
+        initInfo.Subpass = 0;
+        initInfo.MinImageCount = app.m_SwapChain.minImageCount;   // TODO: fix
+        initInfo.ImageCount = app.m_SwapChain.imageCount;
+        initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+        initInfo.Allocator = nullptr;
+        initInfo.CheckVkResultFn = CheckVkResult;
+        ImGui_ImplVulkan_Init(&initInfo, app.m_RenderPass);
 
         // Load Fonts
         // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
@@ -105,42 +97,45 @@ namespace VT
         // - Use '#define IMGUI_ENABLE_FREETYPE' in your imconfig file to use Freetype for higher quality font rendering.
         // - Read 'docs/FONTS.md' for more instructions and details.
         // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
-        //io.Fonts->AddFontDefault();
-        //io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\segoeui.ttf", 18.0f);
-        //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
-        //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf", 16.0f);
-        //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
-        //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
-        //IM_ASSERT(font != NULL);
+        float fontSize = 19.0f;
+        io.Fonts->AddFontFromFileTTF("fonts/OpenSans/OpenSans-Bold.ttf", fontSize);
+        io.FontDefault = io.Fonts->AddFontFromFileTTF("fonts/OpenSans/OpenSans-Regular.ttf", fontSize);
 
         // TODO: Fix upload fonts
         // Use any command queue
-        VkCommandPool command_pool = app.m_CmdPool;
-        VkCommandBuffer command_buffer = app.m_DrawCmdBuffers[app.m_CurrentBuffer];
+        VkCommandPool commandPool = app.m_CmdPool;
 
-        VkResult err = vkResetCommandPool(app.m_Device, command_pool, 0);
+        VkCommandBufferAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandPool = commandPool;
+        allocInfo.commandBufferCount = 1;
+        VkCommandBuffer commandBuffer;
+        vkAllocateCommandBuffers(app.m_Device, &allocInfo, &commandBuffer);
+
+        VkResult err = vkResetCommandPool(app.m_Device, commandPool, 0);
         CheckVkResult(err);
-        VkCommandBufferBeginInfo begin_info{};
-        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        begin_info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-        err = vkBeginCommandBuffer(command_buffer, &begin_info);
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        err = vkBeginCommandBuffer(commandBuffer, &beginInfo);
         CheckVkResult(err);
 
-        ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
+        ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
 
-        VkSubmitInfo end_info{};
-        end_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        end_info.commandBufferCount = 1;
-        end_info.pCommandBuffers = &command_buffer;
-        err = vkEndCommandBuffer(command_buffer);
+        VkSubmitInfo endInfo{};
+        endInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        endInfo.commandBufferCount = 1;
+        endInfo.pCommandBuffers = &commandBuffer;
+        err = vkEndCommandBuffer(commandBuffer);
         CheckVkResult(err);
 
         // Submit to the queue
-        err = vkQueueSubmit(app.m_Queue, 1, &end_info, VK_NULL_HANDLE);
+        err = vkQueueSubmit(app.m_Queue, 1, &endInfo, VK_NULL_HANDLE);
         CheckVkResult(err);
-
         err = vkDeviceWaitIdle(app.m_Device);
         CheckVkResult(err);
+        vkFreeCommandBuffers(app.m_Device, commandPool, 1, &commandBuffer);
         ImGui_ImplVulkan_DestroyFontUploadObjects();
     }
 
@@ -212,14 +207,34 @@ namespace VT
         }
     }
 
-    void ImGuiLayer::ImGuiFrameRender(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+    void ImGuiLayer::ImGuiFrameRender(VkCommandBuffer commandBuffer, VkPipeline pipeline)
     {
-       // ImGui_ImplVulkan_RenderDrawData(nullptr, commandBuffer);
+        // TODO: Separate, and use it in End()
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
     }
 
-    void ImGuiLayer::ImGuiFramePresent(VkSwapchainKHR swapChain)
+    void ImGuiLayer::ImGuiFrameResize()
     {
-
+        // TODO: Setup Dear ImGui context
+        Application& app = Application::Get();
+        // Setup Platform/Renderer backends
+        auto window = (GLFWwindow*)app.GetWindow().GetNativeWindow();
+        ImGui_ImplGlfw_InitForVulkan(window, true);
+        ImGui_ImplVulkan_InitInfo initInfo{};
+        initInfo.Instance = app.m_Instance;
+        initInfo.PhysicalDevice = app.m_PhysicalDevice;
+        initInfo.Device = app.m_Device;
+        initInfo.QueueFamily = app.m_VulkanDevice->queueFamilyIndices.graphics;
+        initInfo.Queue = app.m_Queue;
+        initInfo.PipelineCache = app.m_PipelineCache;
+        initInfo.DescriptorPool = app.m_DescriptorPool;    // TODO: fix
+        initInfo.Subpass = 0;
+        initInfo.MinImageCount = app.m_SwapChain.minImageCount;   // TODO: fix
+        initInfo.ImageCount = app.m_SwapChain.imageCount;
+        initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+        initInfo.Allocator = nullptr;
+        initInfo.CheckVkResultFn = CheckVkResult;
+        ImGui_ImplVulkan_Init(&initInfo, app.m_RenderPass);
     }
 
     void ImGuiLayer::SetDarkThemeColors()

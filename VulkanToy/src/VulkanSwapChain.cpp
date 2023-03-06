@@ -156,7 +156,7 @@ namespace VT
     void VulkanSwapChain::create(uint32_t& width, uint32_t& height, bool vsync, bool fullscreen)
     {
         // Store the current swap chain handle so we can use it later on to ease up recreation
-        VkSwapchainKHR oldSwapchain =swapChain;
+        VkSwapchainKHR oldSwapchain = swapChain;
 
         // Get physical device surface properties and formats
         VkSurfaceCapabilitiesKHR surfCaps;
@@ -179,8 +179,8 @@ namespace VT
         {
             // If the surface size is undefined, the size is set to
             // the size of the images requested.
-            swapchainExtent.width = width;
-            swapchainExtent.height = height;
+            swapchainExtent.width = std::clamp(width, surfCaps.minImageExtent.width, surfCaps.maxImageExtent.width);
+            swapchainExtent.height =  std::clamp(height, surfCaps.minImageExtent.height, surfCaps.maxImageExtent.width);
         } else
         {
             // If the surface size is defined, the swap chain size must match
