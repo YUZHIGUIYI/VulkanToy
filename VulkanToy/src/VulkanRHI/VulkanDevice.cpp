@@ -2,17 +2,14 @@
 // Created by ZZK on 2023/3/1.
 //
 
-#include <VulkanToy/Core/VulkanDevice.h>
+#include <VulkanToy/VulkanRHI/VulkanDevice.h>
 #include <VulkanToy/Core/VulkanInitializers.h>
 
 namespace VT
 {
-    /**
-	* Default constructor
-	*
-	* @param physicalDevice Physical device that is to be used
-	*/
-    VulkanDevice::VulkanDevice(VkPhysicalDevice physicalDevice)
+
+    // Initialize vulkan device
+    void VulkanDevice::init(VkPhysicalDevice physicalDevice)
     {
         assert(physicalDevice);
         this->physicalDevice = physicalDevice;
@@ -47,12 +44,8 @@ namespace VT
         }
     }
 
-    /**
-	* Default destructor
-	*
-	* @note Frees the logical device
-	*/
-    VulkanDevice::~VulkanDevice()
+    // Release vulkan device and its resources
+    void VulkanDevice::release()
     {
         if (commandPool)
         {

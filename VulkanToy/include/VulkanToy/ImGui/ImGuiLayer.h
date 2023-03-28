@@ -5,7 +5,7 @@
 #pragma once
 
 #include <VulkanToy/Core/Layer.h>
-#include <VulkanToy/Core/VulkanDevice.h>
+#include <VulkanToy/VulkanRHI/VulkanDevice.h>
 #include <VulkanToy/Events/Event.h>
 #include <VulkanToy/Events/MouseEvent.h>
 #include <VulkanToy/Events/ApplicationEvent.h>

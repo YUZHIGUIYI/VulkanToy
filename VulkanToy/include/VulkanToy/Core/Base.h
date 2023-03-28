@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include <memory>
-#include <filesystem>
+#include <Pch.h>
 
 #ifdef _DEBUG
     #define VT_DEBUG
@@ -41,13 +40,21 @@
 
 #define BIT(x) (1 << x)
 
-// C++20 standard
+// C++17 standard
 #define VT_BIND_EVENT_FN(fn) [this](auto&&... args) ->decltype(auto) { return this->fn(std::forward<decltype(args)>(args)...); }
+
+// For Vulkan RHI
+// Custom define for better code readability
+#define VK_FLAGS_NONE 0
+// Default fence timeout in nanoseconds
+#define DEFAULT_FENCE_TIMEOUT 100000000000
 
 namespace VT
 {
     template<typename T>
     using Scope = std::unique_ptr<T>;
+
+    template<typename T> concept StringStreamable = requires(std::stringstream & ss, const T & value) { ss << value; };
 
     template<typename T, typename ... Args>
     constexpr Scope<T> CreateScope(Args&& ... args)
@@ -63,25 +70,20 @@ namespace VT
     {
         return std::make_shared<T>(std::forward<Args>(args)...);
     }
+
+    template <class T> requires StringStreamable<T>
+    inline std::string toString(const T& value)
+    {
+        std::stringstream ss;
+
+        ss << std::fixed << value;
+        return ss.str();
+    }
 }
 
+#include <VulkanToy/Core/DisableCopy.h>
+#include <VulkanToy/Core/Singleton.h>
 #include <VulkanToy/Core/Log.h>
-
-// TODO: VkResult check
-// Custom define for better code readability
-#define VK_FLAGS_NONE 0
-// Default fence timeout in nanoseconds
-#define DEFAULT_FENCE_TIMEOUT 100000000000
-
-//#define VT_CHECK_RESULT(f)																				\
-//{																										\
-//	VkResult res = (f);																					\
-//	if (res != VK_SUCCESS)																				\
-//	{                                            \
-//		std::cout << "Fatal : VkResult is \"" << vks::tools::errorString(res) << "\" in " << __FILE__ << " at line " << __LINE__ << "\n"; \
-//		VT_CORE_ASSERT(false, "Fail to create");																		\
-//	}																									\
-//}
 
 
 

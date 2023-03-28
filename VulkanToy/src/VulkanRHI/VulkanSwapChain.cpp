@@ -2,13 +2,13 @@
 // Created by ZZK on 2023/3/2.
 //
 
-#include <VulkanToy/Core/VulkanSwapChain.h>
+#include <VulkanToy/VulkanRHI/VulkanSwapChain.h>
 #include <GLFW/glfw3.h>
 
 namespace VT
 {
     /** @brief Creates the platform specific surface abstraction of the native platform window used for presentation */
-    void VulkanSwapChain::initSurface(void *platformHandle, void *platformWindow)
+    void VulkanSwapChain::initSurface()
     {
         VkResult err = VK_SUCCESS;
 
@@ -382,7 +382,7 @@ namespace VT
     /**
     * Destroy and free Vulkan resources used for the swapchain
     */
-    void VulkanSwapChain::cleanup()
+    void VulkanSwapChain::release()
     {
         if (swapChain != VK_NULL_HANDLE)
         {

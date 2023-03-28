@@ -5,12 +5,6 @@
 #include <VulkanToy/ImGui/ImGuiLayer.h>
 #include <VulkanToy/Core/Application.h>
 
-#include <imgui.h>
-#include <backends/imgui_impl_glfw.h>
-#include <backends/imgui_impl_vulkan.h>
-
-#include <GLFW/glfw3.h>
-
 namespace VT
 {
     static ImGui_ImplVulkanH_Window s_MainWindowData;
@@ -38,7 +32,7 @@ namespace VT
         ImGui_ImplVulkan_Shutdown();
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
-        VT_CORE_INFO("Free ImGui");
+        VT_CORE_INFO("Release ImGui");
     }
 
     void ImGuiLayer::OnAttach()
@@ -98,8 +92,8 @@ namespace VT
         // - Read 'docs/FONTS.md' for more instructions and details.
         // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
         float fontSize = 19.0f;
-        io.Fonts->AddFontFromFileTTF("fonts/OpenSans/OpenSans-Bold.ttf", fontSize);
-        io.FontDefault = io.Fonts->AddFontFromFileTTF("fonts/OpenSans/OpenSans-Regular.ttf", fontSize);
+        io.Fonts->AddFontFromFileTTF("../data/fonts/OpenSans/OpenSans-Bold.ttf", fontSize);
+        io.FontDefault = io.Fonts->AddFontFromFileTTF("../data/fonts/OpenSans/OpenSans-Regular.ttf", fontSize);
 
         // TODO: Fix upload fonts
         // Use any command queue

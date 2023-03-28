@@ -7,8 +7,8 @@
 #include <VulkanToy/Core/CommandLineParser.h>
 #include <VulkanToy/Core/VulkanInitializers.h>
 #include <VulkanToy/Core/VulkanBuffer.h>
-#include <VulkanToy/Core/VulkanDevice.h>
-#include <VulkanToy/Core/VulkanSwapChain.h>
+#include <VulkanToy/VulkanRHI/VulkanDevice.h>
+#include <VulkanToy/VulkanRHI/VulkanSwapChain.h>
 
 #include <VulkanToy/Core/Window.h>
 #include <VulkanToy/Core/Timestep.h>
@@ -16,7 +16,6 @@
 #include <VulkanToy/Events/ApplicationEvent.h>
 #include <VulkanToy/ImGui/ImGuiLayer.h>
 #include <VulkanToy/Core/LayerStack.h>
-
 
 int main(int argc, char** argv);
 
@@ -70,6 +69,8 @@ namespace VT
 
         // TODO: change it to protected
     public:
+        VkSampler m_Sampler{};
+
         // Frame counter to display fps
         uint32_t m_FrameCounter = 0;
 
@@ -247,6 +248,8 @@ namespace VT
         void Run();
         bool OnWindowClose(WindowCloseEvent& e);
         bool OnWindowResize(WindowResizeEvent& e);
+
+        void OnImGuiRender();
 
     public:
         uint32_t m_Width, m_Height;

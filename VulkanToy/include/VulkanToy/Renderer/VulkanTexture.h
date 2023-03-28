@@ -6,7 +6,7 @@
 
 #include <VulkanToy/Core/Base.h>
 #include <VulkanToy/Core/VulkanBuffer.h>
-#include <VulkanToy/Core/VulkanDevice.h>
+#include <VulkanToy/VulkanRHI/VulkanDevice.h>
 
 #include <ktx.h>
 #include <ktxvulkan.h>

@@ -65,6 +65,7 @@ namespace VT
         glfwSetWindowCloseCallback(m_Window, [](GLFWwindow* window)
         {
             WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+            data.IsRun = false;
             WindowCloseEvent event;
             data.EventCallback(event);
         });

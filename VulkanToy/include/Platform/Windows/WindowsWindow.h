@@ -33,14 +33,13 @@ namespace VT
 
     private:
         GLFWwindow* m_Window;
-        // TODO: GraphicsContext of Vulkan?
-        //Scope<GraphicsContext> m_Context;
 
         struct WindowData
         {
             std::string Title;
             uint32_t Width, Height;
-            bool VSync;
+            bool VSync = true;
+            bool IsRun = true;
 
             EventCallbackFn EventCallback;
         };

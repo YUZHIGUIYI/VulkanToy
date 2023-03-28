@@ -8,8 +8,6 @@
 
 int main(int argc, char** argv)
 {
-    VT::Log::Init();
-
     auto app = VT::CreateApplication({ argc, argv });
 
     app->Prepare();

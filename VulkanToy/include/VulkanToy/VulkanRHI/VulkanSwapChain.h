@@ -5,9 +5,6 @@
 #pragma once
 
 #include <VulkanToy/Core/Base.h>
-#include <vulkan/vulkan.h>
-
-struct GLFWwindow;
 
 namespace VT
 {
@@ -45,17 +42,24 @@ namespace VT
         uint32_t imageCount;
         std::vector<VkImage> images;
         std::vector<SwapChainBuffer> buffers;
+        VkExtent2D extent2D;
         uint32_t queueNodeIndex = UINT32_MAX;
 
     public:
-        // Using glfw
-        void initSurface(void* platformHandle, void* platformWindow);
+        VulkanSwapChain() = default;
+        ~VulkanSwapChain() = default;
 
+        void initSurface();
         void connect(VkInstance instance, VkPhysicalDevice physicalDevice, VkDevice device, GLFWwindow* window);
         void create(uint32_t& width, uint32_t& height, bool vsync = false, bool fullscreen = false);
         VkResult acquireNextImage(VkSemaphore presentCompleteSemaphore, uint32_t* imageIndex);
         VkResult queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore waitSemaphore = VK_NULL_HANDLE);
-        void cleanup();
+        void release();
+
+        operator VkSurfaceKHR() const
+        {
+            return surface;
+        }
     };
 }
 

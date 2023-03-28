@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <VulkanToy/Core/Base.h>
-#include <VulkanToy/Core/VulkanBuffer.h>
+#include "VulkanToy/Core/Base.h"
+#include "VulkanToy/Core/VulkanBuffer.h"
 
 namespace VT
 {
@@ -31,6 +31,7 @@ namespace VT
         VkCommandPool commandPool = VK_NULL_HANDLE;
         /** @brief Set to true when the debug marker extension is detected */
         bool enableDebugMarkers = false;
+
         /** @brief Contains queue family indices */
         struct
         {
@@ -38,12 +39,19 @@ namespace VT
             uint32_t compute;
             uint32_t transfer;
         } queueFamilyIndices;
-        operator VkDevice() const
+
+        struct QueuesInfo
         {
-            return logicalDevice;
+            uint32_t graphicsFamily = ~0;
+            uint32_t copyFamily  = ~0;
+            uint32_t computeFamily = ~0;
+
+            std::vector<VkQueue> graphicsQueues;
+            std::vector<VkQueue> copyQueues;
+            std::vector<VkQueue> computeQueues;
         };
-        explicit VulkanDevice(VkPhysicalDevice physicalDevice);
-        ~VulkanDevice();
+        QueuesInfo m_queueInfos;
+
         uint32_t        getMemoryType(uint32_t typeBits, VkMemoryPropertyFlags properties, VkBool32 *memTypeFound = nullptr) const;
         uint32_t        getQueueFamilyIndex(VkQueueFlags queueFlags) const;
         VkResult        createLogicalDevice(VkPhysicalDeviceFeatures enabledFeatures, std::vector<const char *> enabledExtensions, void *pNextChain, bool useSwapChain = true, VkQueueFlags requestedQueueTypes = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
@@ -57,5 +65,16 @@ namespace VT
         void            flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, bool free = true);
         bool            extensionSupported(const std::string& extension);
         VkFormat        getSupportedDepthFormat(bool checkSamplingSupport);
+
+        operator VkDevice() const
+        {
+            return logicalDevice;
+        };
+
+        VulkanDevice() = default;
+        ~VulkanDevice() = default;
+
+        void init(VkPhysicalDevice physicalDevice);
+        void release();
     };
 }

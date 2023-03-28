@@ -13,6 +13,86 @@ namespace VT
 
     std::vector<const char*> Application::s_Args;
 
+    void Application::OnImGuiRender()
+    {
+        // Enable dockspace
+        static bool dockspaceOpen = true;
+        static ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_None;
+        ImGuiWindowFlags windowFlags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+
+        ImGuiViewport* viewport = ImGui::GetMainViewport();
+
+        ImGui::SetNextWindowPos(viewport->WorkPos);
+        ImGui::SetNextWindowSize(viewport->WorkSize);
+        ImGui::SetNextWindowViewport(viewport->ID);
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, 3.0f));
+        windowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+        windowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+
+        // When using ImGuiDockNodeFlags_PassthruCentralNode, DockSpace() will render our background and handle the pass-thru hole, so we ask Begin() to not render a background.
+        if (dockspaceFlags & ImGuiDockNodeFlags_PassthruCentralNode)
+            windowFlags |= ImGuiWindowFlags_NoBackground;
+
+        // Important: note that we proceed even if Begin() returns false (aka window is collapsed).
+        // This is because we want to keep our DockSpace() active. If a DockSpace() is inactive,
+        // all active windows docked into it will lose their parent and become undocked.
+        // We cannot preserve the docking relationship between an active window and an inactive docking, otherwise
+        // any change of dockspace/settings would lead to windows being stuck in limbo and never being visible.
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        ImGui::Begin("VulkanToyDockSpace", &dockspaceOpen, windowFlags);
+        ImGui::PopStyleVar();
+
+        // DockSpace
+        ImGuiIO& io = ImGui::GetIO();
+        ImGuiStyle& style = ImGui::GetStyle();
+        float minWinSizeX = style.WindowMinSize.x;
+        style.WindowMinSize.x = 370.0f;
+        if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
+        {
+            ImGuiID dockspaceId = ImGui::GetID("MyDockSpace");
+            ImGui::DockSpace(dockspaceId, ImVec2(0.0f, 0.0f), dockspaceFlags);
+        }
+        style.WindowMinSize.x = minWinSizeX;
+
+        // Add other UI
+
+        {
+            // Add sampler
+            VkSamplerCreateInfo info;
+//            info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+//            info.magFilter = VK_FILTER_LINEAR;
+//            info.minFilter = VK_FILTER_LINEAR;
+//
+//            info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+//            info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+//            info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+//
+//            info.anisotropyEnable = VK_TRUE;
+//            info.maxAnisotropy = 1.0f;
+//
+//            info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+//            info.unnormalizedCoordinates = VK_FALSE;
+//
+//            info.compareEnable = VK_FALSE;
+//            info.compareOp = VK_COMPARE_OP_ALWAYS;
+//
+//            info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+
+//            vkCreateSampler(m_Device, &info, nullptr, &m_Sampler);
+        }
+
+//        VkDescriptorSet m_DescriptorSet = ImGui_ImplVulkan_AddTexture(m_Sampler, m_SwapChain.buffers[m_CurrentBuffer].view,
+//                                                                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+//        ImVec2 startPos = ImGui::GetCursorPos();
+//        ImGui::Image(m_DescriptorSet, ImVec2{ 800, 600 }, ImVec2{ 0, 1 }, ImVec2{ 1, 0 });
+
+        ImGui::PopStyleVar(3);
+        ImGui::End();
+    }
+
     Application::Application(const std::string &name, ApplicationCommandLineArgs args, bool enableValidation)
         : m_Name(name), m_CommandLineArgs(args)
     {
@@ -748,7 +828,7 @@ namespace VT
     void Application::InitSwapchain()
     {
         //Since we use GLFW, platformHandle and platformWindow are not work
-        m_SwapChain.initSurface(nullptr, nullptr);
+        m_SwapChain.initSurface();
     }
 
     void Application::SetupSwapChain()
@@ -793,6 +873,9 @@ namespace VT
             {
                 layer->OnImGuiRender();
             }
+
+            OnImGuiRender();
+
             m_ImGuiLayer->End();
 
             // TODO: separate
