@@ -40,26 +40,22 @@ namespace VT
         VkSwapchainKHR swapChain = VK_NULL_HANDLE;
         uint32_t minImageCount;
         uint32_t imageCount;
-        std::vector<VkImage> images;
-        std::vector<SwapChainBuffer> buffers;
-        VkExtent2D extent2D;
+        std::vector<VkImage> swapChainImages;
+        std::vector<VkImageView> swapChainImageViews;
+        VkExtent2D swapChainExtent;
         uint32_t queueNodeIndex = UINT32_MAX;
 
     public:
         VulkanSwapChain() = default;
         ~VulkanSwapChain() = default;
 
+        void init();
+        void release();
         void initSurface();
         void connect(VkInstance instance, VkPhysicalDevice physicalDevice, VkDevice device, GLFWwindow* window);
         void create(uint32_t& width, uint32_t& height, bool vsync = false, bool fullscreen = false);
         VkResult acquireNextImage(VkSemaphore presentCompleteSemaphore, uint32_t* imageIndex);
         VkResult queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore waitSemaphore = VK_NULL_HANDLE);
-        void release();
-
-        operator VkSurfaceKHR() const
-        {
-            return surface;
-        }
     };
 }
 

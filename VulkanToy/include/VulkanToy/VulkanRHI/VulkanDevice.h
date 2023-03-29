@@ -25,20 +25,13 @@ namespace VT
         VkPhysicalDeviceMemoryProperties memoryProperties;
         /** @brief Queue family properties of the physical device */
         std::vector<VkQueueFamilyProperties> queueFamilyProperties;
-        /** @brief List of extensions supported by the device */
-        std::vector<std::string> supportedExtensions;
-        /** @brief Default command pool for the graphics queue family index */
-        VkCommandPool commandPool = VK_NULL_HANDLE;
-        /** @brief Set to true when the debug marker extension is detected */
-        bool enableDebugMarkers = false;
 
-        /** @brief Contains queue family indices */
-        struct
-        {
-            uint32_t graphics;
-            uint32_t compute;
-            uint32_t transfer;
-        } queueFamilyIndices;
+        VkPhysicalDeviceDescriptorIndexingPropertiesEXT descriptorIndexingProperties{};
+
+        VkFormat cacheSupportDepthStencilFormat;
+        VkFormat cacheSupportDepthOnlyFormat;
+
+        bool enableDebugMarkers = false;
 
         struct QueuesInfo
         {
@@ -50,7 +43,25 @@ namespace VT
             std::vector<VkQueue> copyQueues;
             std::vector<VkQueue> computeQueues;
         };
-        QueuesInfo m_queueInfos;
+        QueuesInfo queueInfos;
+
+        struct CommandPool
+        {
+            VkQueue queue = VK_NULL_HANDLE;
+            VkCommandPool pool = VK_NULL_HANDLE;
+        };
+
+        // Major graphics queue with priority 1.0f
+        CommandPool majorGraphicsPool;
+        // Major compute queue with priority 0.8f, for Async Scheduler
+        CommandPool majorComputePool;
+        // Second major queue with priority 0.8f, for Async Scheduler
+        CommandPool secondMajorGraphicsPool;
+        // Other command pool with priority 0.5f
+        std::vector<CommandPool> graphicsPools;
+        std::vector<CommandPool> computePools;
+        // Copy pool used for async uploader
+        std::vector<CommandPool> copyPools;
 
         uint32_t        getMemoryType(uint32_t typeBits, VkMemoryPropertyFlags properties, VkBool32 *memTypeFound = nullptr) const;
         uint32_t        getQueueFamilyIndex(VkQueueFlags queueFlags) const;
@@ -74,7 +85,17 @@ namespace VT
         VulkanDevice() = default;
         ~VulkanDevice() = default;
 
-        void init(VkPhysicalDevice physicalDevice);
+        bool isPhysicalDeviceSuitable(std::vector<char const *> const &requestExtensions);
+        void pickupSuitableGPU(std::vector<char const *> const &requestExtensions);
+        void createLogicDevice(VkPhysicalDeviceFeatures features, const std::vector<const char *> &requestExtensions, void *nextChain);
+
+        VkFormat findSupportedFormat(std::vector<VkFormat> const &candidates, VkImageTiling tiling, VkFormatFeatureFlags featureFlags);
+        int32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags memoryPropertyFlags);
+
+        void initCommandPool();
+        void releaseCommandPool();
+
+        void init(VkPhysicalDeviceFeatures features, const std::vector<const char *> &requestExtensions, void *nextChain);
         void release();
     };
 }

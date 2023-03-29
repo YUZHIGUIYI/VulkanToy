@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <VulkanToy/Core/Base.h>
+#include <VulkanToy/VulkanRHI/VulkanRHICommand.h>
 #include <VulkanToy/VulkanRHI/VulkanDevice.h>
 #include <VulkanToy/VulkanRHI/VulkanSwapChain.h>
 #include <VulkanToy/VulkanRHI/VulkanDescriptor.h>
@@ -15,10 +15,7 @@ namespace VT
     class VulkanContext final : public DisableCopy
     {
     public:
-        bool isPhysicalDeviceSuitable(std::vector<char const *> const &requestExtensions);
-        void pickupSuitableGPU(std::vector<char const *> const &requestExtensions);
-        // SwapchainSupportDetails querySwapchainSupportDetail();
-
+        // SwapChainSupportDetails querySwapChainSupportDetail();
         VkFormat findSupportedFormat(std::vector<VkFormat> const &candidates, VkImageTiling tiling, VkFormatFeatureFlags featureFlags);
         int32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags memoryPropertyFlags);
 
@@ -26,6 +23,7 @@ namespace VT
         GLFWwindow* m_window;
 
         VkInstance m_instance = VK_NULL_HANDLE;
+        VkDebugReportCallbackEXT m_debugReportHandle = VK_NULL_HANDLE;
         VulkanDevice m_device{};
         VulkanSwapChain m_swapChain{};
         VkSurfaceKHR  m_surface = VK_NULL_HANDLE;
@@ -34,30 +32,9 @@ namespace VT
         DescriptorAllocator m_descriptorAllocator{};
         DescriptorLayoutCache m_descriptorLayoutCache{};
 
-        VkFormat m_cacheSupportDepthStencilFormat;
-        VkFormat m_cacheSupportDepthOnlyFormat;
-
-        struct CommandPool
-        {
-            VkQueue queue = VK_NULL_HANDLE;
-            VkCommandPool pool = VK_NULL_HANDLE;
-        };
-
-        /** @brief Major graphics queue with priority 1.0f */
-        CommandPool m_majorGraphicsPool;
-        /** @brief Major compute queue with priority 0.8f. Use for AsyncScheduler */
-        CommandPool m_majorComputePool;
-        /** @brief Second major queue with priority 0.8f. Use fir Async Scheduler */
-        CommandPool m_secondMajorGraphicsPool;
-        /** @brief Other command pool with priority 0.5f. */
-        std::vector<CommandPool> m_graphicsPools;
-        std::vector<CommandPool> m_computePools;
-        /** @brief Copy pool used for async uploader. */
-        std::vector<CommandPool> m_copyPools;
-
         struct PresentContext
         {
-            bool swapChainChange = false;
+            bool isSwapChainChange = false;
             uint32_t imageIndex;
             uint32_t currentFrame;
             std::vector<VkSemaphore> semaphoresImageAvailable;
@@ -81,21 +58,18 @@ namespace VT
         void initInstance(std::vector<char const *> const &requiredExtensions, std::vector<char const *> const &requiredLayers);
         void releaseInstance();
 
-        void initDevice(VkPhysicalDeviceFeatures features, std::vector<char const *> const &requestExtens, void *nextChain = nullptr);
+        void initDevice(VkPhysicalDeviceFeatures features, std::vector<char const *> const &requestedExtensions, void *nextChain = nullptr);
         void releaseDevice();
 
         void initVMA();
         void releaseVMA();
 
-        void initCommandPool();
-        void releaseCommandPool();
-
     public:
         GLFWwindow* getWindow() { return m_window; };
-        [[nodiscard]] VkSurfaceKHR getSurface() const { return m_swapChain; }
+        [[nodiscard]] VkSurfaceKHR getSurface() const { return m_surface; }
 
-        [[nodiscard]] VkFormat getSupportDepthStencilFormat() const { return m_cacheSupportDepthStencilFormat; }
-        [[nodiscard]] VkFormat getSupportDepthOnlyFormat() const { return m_cacheSupportDepthOnlyFormat; }
+        [[nodiscard]] VkFormat getSupportDepthStencilFormat() const { return m_device.cacheSupportDepthStencilFormat; }
+        [[nodiscard]] VkFormat getSupportDepthOnlyFormat() const { return m_device.cacheSupportDepthOnlyFormat; }
 
         [[nodiscard]] uint32_t getMaxMemoryAllocationCount() const { return m_device.properties.limits.maxMemoryAllocationCount; }
 
@@ -103,37 +77,39 @@ namespace VT
         void init(GLFWwindow* window);
         void release();
         void rebuildSwapChain();
+        SwapChainSupportDetails querySwapChainSupportDetail();
 
     public:
         uint32_t acquireNextPresentImage();
         void present();
         void submit(uint32_t count, VkSubmitInfo *infos);
+        void submitWithoutFence(uint32_t count, VkSubmitInfo* infos);
         void resetFence();
 
     public:
         // Major graphics queue used for present and ui render. priority 1.0.
-        [[nodiscard]] VkQueue getMajorGraphicsQueue() const { return m_majorGraphicsPool.queue; }
-        [[nodiscard]] VkCommandPool getMajorGraphicsCommandPool() const { return m_majorGraphicsPool.pool; }
-        [[nodiscard]] VkCommandBuffer createMajorGraphicsCommandBuffer();
+        [[nodiscard]] VkQueue getMajorGraphicsQueue() const { return m_device.majorGraphicsPool.queue; }
+        [[nodiscard]] VkCommandPool getMajorGraphicsCommandPool() const { return m_device.majorGraphicsPool.pool; }
+        VkCommandBuffer createMajorGraphicsCommandBuffer();
 
         // Major compute queue. priority 0.8.
-        [[nodiscard]] VkQueue getMajorComputeQueue() const { return m_majorComputePool.queue; }
-        [[nodiscard]] VkCommandPool getMajorComputeCommandPool() const { return m_majorComputePool.pool; }
+        [[nodiscard]] VkQueue getMajorComputeQueue() const { return m_device.majorComputePool.queue; }
+        [[nodiscard]] VkCommandPool getMajorComputeCommandPool() const { return m_device.majorComputePool.pool; }
 
-        [[nodiscard]] VkQueue getSecondMajorGraphicsQueue() const { return m_secondMajorGraphicsPool.queue; }
-        [[nodiscard]] VkCommandPool getSecondMajorGraphicsCommandPool() const { return m_secondMajorGraphicsPool.pool; }
+        [[nodiscard]] VkQueue getSecondMajorGraphicsQueue() const { return m_device.secondMajorGraphicsPool.queue; }
+        [[nodiscard]] VkCommandPool getSecondMajorGraphicsCommandPool() const { return m_device.secondMajorGraphicsPool.pool; }
 
         // Other queues, priority 0.5.
-        [[nodiscard]] const auto& getAsyncCopyCommandPools() const { return m_copyPools; }
-        [[nodiscard]] const auto& getAsyncComputeCommandPools() const { return m_computePools; }
-        [[nodiscard]] const auto& getAsyncGraphicsCommandPools() const { return m_graphicsPools; }
+        [[nodiscard]] const auto& getAsyncCopyCommandPools() const { return m_device.copyPools; }
+        [[nodiscard]] const auto& getAsyncComputeCommandPools() const { return m_device.computePools; }
+        [[nodiscard]] const auto& getAsyncGraphicsCommandPools() const { return m_device.graphicsPools; }
 
         [[nodiscard]] VkInstance getInstance() const { return m_instance; }
 
-        [[nodiscard]] const VulkanDevice::QueuesInfo& getGPUQueuesInfo() const { return m_device.m_queueInfos; }
-        [[nodiscard]] uint32_t getGraphicsFamily() const { return m_device.m_queueInfos.graphicsFamily; }
-        [[nodiscard]] uint32_t getComputeFamily() const { return m_device.m_queueInfos.computeFamily; }
-        [[nodiscard]] uint32_t getCopyFamily() const { return m_device.m_queueInfos.copyFamily; }
+        [[nodiscard]] const VulkanDevice::QueuesInfo& getGPUQueuesInfo() const { return m_device.queueInfos; }
+        [[nodiscard]] uint32_t getGraphicsFamily() const { return m_device.queueInfos.graphicsFamily; }
+        [[nodiscard]] uint32_t getComputeFamily() const { return m_device.queueInfos.computeFamily; }
+        [[nodiscard]] uint32_t getCopyFamily() const { return m_device.queueInfos.copyFamily; }
 
         // Add descriptor
 
@@ -158,8 +134,41 @@ namespace VT
 
     namespace VulkanRHI
     {
+        extern size_t MaxSwapChainCount;
+
+        extern VkPhysicalDevice GPU;
+        extern VkDevice Device;
+        extern VmaAllocator VMA;
+
+        enum class DisplayMode
+        {
+            DISPLAYMODE_SDR,
+            DISPLAYMODE_HDR
+        };
+        extern DisplayMode eDisplayMode;
+        extern bool isSupportHDR;
+        extern VkHdrMetadataEXT HdrMetadataExt;
+
         // Initialize Vulkan context and get this pointer
         inline constexpr auto get = [](){ return Singleton<VulkanContext>::Get(); };
+
+        extern void setResourceName(VkObjectType objectType, uint64_t handle, char const *name);
+
+        extern void setPerfMarkerBegin(VkCommandBuffer cmdBuf, char const *name, glm::vec4 const &color);
+        extern void setPerfMarkerEnd(VkCommandBuffer cmdBuf);
+
+        // Record command buffer
+        extern void executeImmediately(VkCommandBuffer cmdBuf, VkQueue queue, std::function<void(VkCommandBuffer commandBuffer)>&& func);
+        extern void executeImmediately(std::function<void(VkCommandBuffer commandBuffer)>&& func);
+
+        // Use to compute RHI resource used
+        extern void addGPUResourceMemoryUsed(size_t in);
+        extern void minusGPUResourceMemoryUsed(size_t in);
+        extern size_t getGPUResourceMemoryUsed();
+
+        // Push descriptor set functions
+        extern PFN_vkCmdPushDescriptorSetKHR PushDescriptorSetKHR;
+        extern PFN_vkCmdPushDescriptorSetWithTemplateKHR PushDescriptorSetWithTemplateKHR;
     }
 }
 

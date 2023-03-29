@@ -3,10 +3,160 @@
 //
 
 #include <VulkanToy/VulkanRHI/VulkanSwapChain.h>
-#include <GLFW/glfw3.h>
+#include <VulkanToy/VulkanRHI/VulkanRHI.h>
 
 namespace VT
 {
+    VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats)
+    {
+        switch (VulkanRHI::eDisplayMode)
+        {
+            case VulkanRHI::DisplayMode::DISPLAYMODE_HDR:
+            {
+                for (const auto& availableFormat : availableFormats)
+                {
+                    if (availableFormat.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT)
+                    {
+                        if (availableFormat.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
+                        {
+                            return availableFormat;
+                        }
+                    }
+                }
+                break;
+            }
+            case VulkanRHI::DisplayMode::DISPLAYMODE_SDR:
+            {
+                for (const auto& availableFormat : availableFormats)
+                {
+                    if (availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+                    {
+                        if (availableFormat.format == VK_FORMAT_B8G8R8A8_UNORM)
+                        {
+                            return availableFormat;
+                        }
+                    }
+                }
+                break;
+            }
+            default:
+                break;
+        }
+        VT_CORE_WARN("Currently using non-srgb unorm format back format back buffer, may cause some problem");
+        return availableFormats[0];
+    }
+
+    VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR> &availablePresentModes)
+    {
+        // TODO: try to use mailbox
+        for (const auto& availablePresentMode : availablePresentModes)
+        {
+            if (availablePresentMode == VK_PRESENT_MODE_FIFO_KHR)
+            {
+                return availablePresentMode;
+            }
+        }
+        for (const auto& availablePresentMode : availablePresentModes)
+        {
+            if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR)
+            {
+                return availablePresentMode;
+            }
+        }
+
+        return VK_PRESENT_MODE_IMMEDIATE_KHR;
+    }
+
+    VkExtent2D chooseSwapChainExtent(const VkSurfaceCapabilitiesKHR& capabilities)
+    {
+        if (capabilities.currentExtent.width != UINT32_MAX)
+        {
+            return capabilities.currentExtent;
+        } else
+        {
+            int width, height;
+            glfwGetFramebufferSize(VulkanRHI::get()->getWindow(), &width, &height);
+
+            VkExtent2D actualExtent{static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
+
+            actualExtent.width = std::max(
+                capabilities.minImageExtent.width,
+                std::min(capabilities.maxImageExtent.width, actualExtent.width));
+            actualExtent.height = std::max(
+                capabilities.minImageExtent.height,
+                std::min(capabilities.maxImageExtent.height, actualExtent.height));
+            return actualExtent;
+        }
+    }
+
+    // Initialize swap chain
+    void VulkanSwapChain::init()
+    {
+        auto swapChainSupportDetail = VulkanRHI::get()->querySwapChainSupportDetail();
+
+        VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupportDetail.formats);
+        VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupportDetail.presentModes);
+        VkExtent2D extent = chooseSwapChainExtent(swapChainSupportDetail.capabilities);
+        imageCount = swapChainSupportDetail.capabilities.minImageCount + 1;
+        if (swapChainSupportDetail.capabilities.maxImageCount > 0 && imageCount > swapChainSupportDetail.capabilities.maxImageCount)
+        {
+            imageCount = swapChainSupportDetail.capabilities.maxImageCount;
+        }
+        minImageCount = imageCount;
+        VkSwapchainCreateInfoKHR createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+        createInfo.surface = VulkanRHI::get()->getSurface();
+        createInfo.minImageCount = imageCount;
+        createInfo.imageFormat = surfaceFormat.format;
+        createInfo.imageColorSpace = surfaceFormat.colorSpace;
+        createInfo.imageExtent = extent;
+        createInfo.imageArrayLayers = 1;
+        createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
+        // Use graphics family queue to draw and swap
+        createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        createInfo.queueFamilyIndexCount = 0;
+        createInfo.pQueueFamilyIndices = nullptr;
+
+        createInfo.preTransform = swapChainSupportDetail.capabilities.currentTransform;
+        createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+        createInfo.presentMode = presentMode;
+        createInfo.clipped = VK_TRUE;
+
+        RHICheck(vkCreateSwapchainKHR(VulkanRHI::Device, &createInfo, nullptr, &swapChain));
+
+        // Allocate images
+        vkGetSwapchainImagesKHR(VulkanRHI::Device, swapChain, &imageCount, nullptr);
+        swapChainImages.resize(imageCount);
+        vkGetSwapchainImagesKHR(VulkanRHI::Device, swapChain, &imageCount, swapChainImages.data());
+
+        colorFormat = surfaceFormat.format;
+        swapChainExtent = extent;
+
+        // Create image views needed for swap chain
+        swapChainImageViews.resize(imageCount);
+        for (size_t i = 0; i < imageCount; ++i)
+        {
+            VkImageViewCreateInfo viewCreateInfo{};
+            viewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            viewCreateInfo.image = swapChainImages[i];
+            viewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            viewCreateInfo.format = colorFormat;
+            viewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+            viewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+            viewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+            viewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+            viewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            viewCreateInfo.subresourceRange.baseMipLevel = 0;
+            viewCreateInfo.subresourceRange.levelCount = 1;
+            viewCreateInfo.subresourceRange.baseArrayLayer = 0;
+            viewCreateInfo.subresourceRange.layerCount = 1;
+
+            RHICheck(vkCreateImageView(VulkanRHI::Device, &viewCreateInfo, nullptr, &swapChainImageViews[i]));
+        }
+        VT_CORE_TRACE("Create vulkan swap chain successfully, back buffer count is {0}", imageCount);
+    }
+
     /** @brief Creates the platform specific surface abstraction of the native platform window used for presentation */
     void VulkanSwapChain::initSurface()
     {
