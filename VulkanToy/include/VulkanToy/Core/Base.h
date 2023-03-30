@@ -48,6 +48,8 @@
 #define VK_FLAGS_NONE 0
 // Default fence timeout in nanoseconds
 #define DEFAULT_FENCE_TIMEOUT 100000000000
+// Default descriptor pool size
+#define DESCRIPTOR_POOL_SIZE 256
 
 namespace VT
 {

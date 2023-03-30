@@ -157,6 +157,22 @@ namespace VT
         VT_CORE_TRACE("Create vulkan swap chain successfully, back buffer count is {0}", imageCount);
     }
 
+    void VulkanSwapChain::release()
+    {
+        for (auto imageView : swapChainImageViews)
+        {
+            vkDestroyImageView(VulkanRHI::Device, imageView, nullptr);
+        }
+        swapChainImageViews.resize(0);
+        vkDestroySwapchainKHR(VulkanRHI::Device, swapChain, nullptr);
+    }
+
+    void VulkanSwapChain::rebuild()
+    {
+        release();
+        init();
+    }
+
     /** @brief Creates the platform specific surface abstraction of the native platform window used for presentation */
     void VulkanSwapChain::initSurface()
     {

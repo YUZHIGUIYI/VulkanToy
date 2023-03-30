@@ -51,6 +51,8 @@ namespace VT
 
         void init();
         void release();
+        void rebuild();
+
         void initSurface();
         void connect(VkInstance instance, VkPhysicalDevice physicalDevice, VkDevice device, GLFWwindow* window);
         void create(uint32_t& width, uint32_t& height, bool vsync = false, bool fullscreen = false);

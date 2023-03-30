@@ -6,6 +6,26 @@
 
 namespace VT
 {
+    // In namespace VulkanRHI - variable definition
+    size_t VulkanRHI::MaxSwapChainCount = ~0;
+    std::atomic<size_t> VulkanRHI::GPUResourceMemoryUsed{0};
+    VulkanRHI::DisplayMode VulkanRHI::eDisplayMode = VulkanRHI::DisplayMode::DISPLAYMODE_SDR;
+    bool VulkanRHI::isSupportHDR = false;
+
+    VkPhysicalDevice VulkanRHI::GPU     = VK_NULL_HANDLE;
+    VkDevice         VulkanRHI::Device  = VK_NULL_HANDLE;
+    VmaAllocator     VulkanRHI::VMA     = VK_NULL_HANDLE;
+    VkHdrMetadataEXT VulkanRHI::HdrMetadataEXT{ .sType = VK_STRUCTURE_TYPE_HDR_METADATA_EXT, .pNext = nullptr };
+
+    ShaderCache* VulkanRHI::ShaderManager = nullptr;
+
+    // Push descriptors.
+    PFN_vkCmdPushDescriptorSetKHR VulkanRHI::PushDescriptorSetKHR = nullptr;
+    PFN_vkCmdPushDescriptorSetWithTemplateKHR VulkanRHI::PushDescriptorSetWithTemplateKHR = nullptr;
+
+    // HDR function
+    PFN_vkSetHdrMetadataEXT VulkanRHI::SetHdrMetadataEXT = nullptr;
+
     static PFN_vkSetDebugUtilsObjectNameEXT GVkSetDebugUtilsObjectName = nullptr;
     static PFN_vkCmdBeginDebugUtilsLabelEXT GVkCmdBeginDebugUtilsLabel = nullptr;
     static PFN_vkCmdEndDebugUtilsLabelEXT   GVkCmdEndDebugUtilsLabel = nullptr;
@@ -437,14 +457,17 @@ namespace VT
         initVMA();
         VulkanRHI::VMA = m_vmaAllocator;
 
-        // TODO: initialize shader cache
+        // Initialize shader cache
+        m_shaderCache.init();
+        VulkanRHI::ShaderManager = &m_shaderCache;
 
         // TODO: initialize sampler cache
 
         // TODO: initialize descriptor cache(layout and descriptor set)
 
-        // TODO: initialize swap chain
+        // Initialize swap chain
         m_swapChain.init();
+        VulkanRHI::MaxSwapChainCount = m_swapChain.swapChainImageViews.size();
 
         // Initialize present context
         m_presentContext.init();
@@ -509,12 +532,15 @@ namespace VT
             return;
         }
 
+        // TODO: before recreate broadcast
+
         // Clean
         m_presentContext.release();
-        m_swapChain.release();
-        m_swapChain.init(); // TODO
+        m_swapChain.rebuild();
         m_presentContext.init();
-        m_presentContext.imagesInFlight.resize(m_swapChain.imageViews.size(), VK_NULL_HANDLE);  // TODO
+        m_presentContext.imagesInFlight.resize(m_swapChain.swapChainImageViews.size(), VK_NULL_HANDLE);
+
+        // TODO: after recreate broadcast
     }
 
     SwapChainSupportDetails VulkanContext::querySwapChainSupportDetail()
@@ -628,11 +654,105 @@ namespace VT
         return cmdBuffer;
     }
 
+    DescriptorFactory VulkanContext::descriptorFactoryBegin()
+    {
+        return DescriptorFactory::begin(&m_descriptorPoolCache);
+    }
+
     VkPipelineLayout VulkanContext::createPipelineLayout(const VkPipelineLayoutCreateInfo &info)
     {
         VkPipelineLayout pipelineLayout;
         RHICheck(vkCreatePipelineLayout(m_device.logicalDevice, &info, nullptr, &pipelineLayout));
         return pipelineLayout;
+    }
+
+    // In namespace VulkanRHI - functions
+    void VulkanRHI::setResourceName(VkObjectType objectType, uint64_t handle, const char *name)
+    {
+        // TODO: check
+        static std::mutex gMutexForSettingResource;
+        if (GVkSetDebugUtilsObjectName && handle && name)
+        {
+            std::unique_lock<std::mutex> lockGuard{gMutexForSettingResource};
+            VkDebugUtilsObjectNameInfoEXT nameInfo{};
+            nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+            nameInfo.objectType = objectType;
+            nameInfo.objectHandle = handle;
+            nameInfo.pObjectName = name;
+            GVkSetDebugUtilsObjectName(VulkanRHI::Device, &nameInfo);
+        }
+    }
+
+    void VulkanRHI::setPerfMarkerBegin(VkCommandBuffer cmdBuf, const char *name, const glm::vec4 &color)
+    {
+        if (GVkCmdBeginDebugUtilsLabel)
+        {
+            VkDebugUtilsLabelEXT labelExt{};
+            labelExt.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+            labelExt.pLabelName = name;
+            labelExt.color[0] = color.r;
+            labelExt.color[1] = color.g;
+            labelExt.color[2] = color.b;
+            labelExt.color[3] = color.a;
+            GVkCmdBeginDebugUtilsLabel(cmdBuf, &labelExt);
+        }
+    }
+
+    void VulkanRHI::setPerfMarkerEnd(VkCommandBuffer cmdBuf)
+    {
+        if (GVkCmdEndDebugUtilsLabel)
+        {
+            GVkCmdEndDebugUtilsLabel(cmdBuf);
+        }
+    }
+
+    void VulkanRHI::executeImmediately(VkCommandPool commandPool, VkQueue queue, std::function<void(VkCommandBuffer)> &&func)
+    {
+        VkCommandBufferAllocateInfo allocateInfo{};
+        allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocateInfo.commandPool = commandPool;
+        allocateInfo.commandBufferCount = 1;
+
+        VkCommandBuffer commandBuffer{};
+        vkAllocateCommandBuffers(VulkanRHI::Device, &allocateInfo, &commandBuffer);
+
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+        func(commandBuffer);
+
+        vkEndCommandBuffer(commandBuffer);
+
+        VkSubmitInfo submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &commandBuffer;
+        vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+        vkQueueWaitIdle(queue);
+        vkFreeCommandBuffers(VulkanRHI::Device, commandPool, 1, &commandBuffer);
+    }
+
+    void VulkanRHI::executeImmediately(std::function<void(VkCommandBuffer)> &&func)
+    {
+        executeImmediately(VulkanRHI::get()->getMajorGraphicsCommandPool(), VulkanRHI::get()->getMajorGraphicsQueue(), std::move(func));
+    }
+
+    void VulkanRHI::addGPUResourceMemoryUsed(size_t in)
+    {
+        GPUResourceMemoryUsed.fetch_add(in);
+    }
+
+    void VulkanRHI::minusGPUResourceMemoryUsed(size_t in)
+    {
+        GPUResourceMemoryUsed.fetch_sub(in);
+    }
+
+    size_t VulkanRHI::getGPUResourceMemoryUsed()
+    {
+        GPUResourceMemoryUsed.load();
     }
 }
 

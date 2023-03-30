@@ -8,6 +8,8 @@
 #include <VulkanToy/VulkanRHI/VulkanDevice.h>
 #include <VulkanToy/VulkanRHI/VulkanSwapChain.h>
 #include <VulkanToy/VulkanRHI/VulkanDescriptor.h>
+#include <VulkanToy/VulkanRHI/Shader.h>
+#include <VulkanToy/VulkanRHI/VulkanDescriptor.h>
 
 namespace VT
 {
@@ -15,12 +17,12 @@ namespace VT
     class VulkanContext final : public DisableCopy
     {
     public:
-        // SwapChainSupportDetails querySwapChainSupportDetail();
         VkFormat findSupportedFormat(std::vector<VkFormat> const &candidates, VkImageTiling tiling, VkFormatFeatureFlags featureFlags);
         int32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags memoryPropertyFlags);
+        SwapChainSupportDetails querySwapChainSupportDetail();
 
     private:
-        GLFWwindow* m_window;
+        GLFWwindow* m_window = nullptr;
 
         VkInstance m_instance = VK_NULL_HANDLE;
         VkDebugReportCallbackEXT m_debugReportHandle = VK_NULL_HANDLE;
@@ -29,8 +31,7 @@ namespace VT
         VkSurfaceKHR  m_surface = VK_NULL_HANDLE;
 
         VmaAllocator m_vmaAllocator{};
-        DescriptorAllocator m_descriptorAllocator{};
-        DescriptorLayoutCache m_descriptorLayoutCache{};
+        DescriptorPoolCache m_descriptorPoolCache{};
 
         struct PresentContext
         {
@@ -45,6 +46,8 @@ namespace VT
             void init();
             void release();
         } m_presentContext;
+
+        ShaderCache m_shaderCache;
 
     private:
         int currentWidth;
@@ -77,7 +80,6 @@ namespace VT
         void init(GLFWwindow* window);
         void release();
         void rebuildSwapChain();
-        SwapChainSupportDetails querySwapChainSupportDetail();
 
     public:
         uint32_t acquireNextPresentImage();
@@ -88,9 +90,9 @@ namespace VT
 
     public:
         // Major graphics queue used for present and ui render. priority 1.0.
+        VkCommandBuffer createMajorGraphicsCommandBuffer();
         [[nodiscard]] VkQueue getMajorGraphicsQueue() const { return m_device.majorGraphicsPool.queue; }
         [[nodiscard]] VkCommandPool getMajorGraphicsCommandPool() const { return m_device.majorGraphicsPool.pool; }
-        VkCommandBuffer createMajorGraphicsCommandBuffer();
 
         // Major compute queue. priority 0.8.
         [[nodiscard]] VkQueue getMajorComputeQueue() const { return m_device.majorComputePool.queue; }
@@ -111,25 +113,26 @@ namespace VT
         [[nodiscard]] uint32_t getComputeFamily() const { return m_device.queueInfos.computeFamily; }
         [[nodiscard]] uint32_t getCopyFamily() const { return m_device.queueInfos.copyFamily; }
 
-        // Add descriptor
+        // Descriptor
+        DescriptorPoolCache& getDescriptorPoolCache() { return m_descriptorPoolCache; }
 
+        DescriptorFactory descriptorFactoryBegin();
 
         // Other
         VkPipelineLayout createPipelineLayout(const VkPipelineLayoutCreateInfo& info);
 
-        [[nodiscard]] const uint32_t getCurrentFrameIndex() const { return m_presentContext.currentFrame; }
+        [[nodiscard]] uint32_t getCurrentFrameIndex() const { return m_presentContext.currentFrame; }
 
         VulkanSwapChain& getSwapChain() { return m_swapChain; }
-        std::vector<SwapChainBuffer>& getSwapChainBuffers() { return m_swapChain.buffers; }
+        std::vector<VkImageView>& getSwapChainImageViews() { return m_swapChain.swapChainImageViews; }
 
         [[nodiscard]] VkFormat getSwapChainFormat() const { return m_swapChain.colorFormat; }
-        [[nodiscard]] VkExtent2D getSwapChainExtent() const { return m_swapChain.extent2D; }
+        [[nodiscard]] VkExtent2D getSwapChainExtent() const { return m_swapChain.swapChainExtent; }
 
         [[nodiscard]] VkPhysicalDeviceProperties getPhysicalDeviceProperties() const { return m_device.properties; }
 
         [[nodiscard]] VkSemaphore getCurrentFrameWaitSemaphore() const { return m_presentContext.semaphoresImageAvailable[m_presentContext.currentFrame]; }
         [[nodiscard]] VkSemaphore getCurrentFrameFinishSemaphore() const { return m_presentContext.semaphoresRenderFinished[m_presentContext.currentFrame]; }
-
     };
 
     namespace VulkanRHI
@@ -139,6 +142,7 @@ namespace VT
         extern VkPhysicalDevice GPU;
         extern VkDevice Device;
         extern VmaAllocator VMA;
+        extern ShaderCache* ShaderManager;
 
         enum class DisplayMode
         {
@@ -147,7 +151,8 @@ namespace VT
         };
         extern DisplayMode eDisplayMode;
         extern bool isSupportHDR;
-        extern VkHdrMetadataEXT HdrMetadataExt;
+        extern VkHdrMetadataEXT HdrMetadataEXT;
+        extern std::atomic<size_t> GPUResourceMemoryUsed;
 
         // Initialize Vulkan context and get this pointer
         inline constexpr auto get = [](){ return Singleton<VulkanContext>::Get(); };
@@ -158,7 +163,7 @@ namespace VT
         extern void setPerfMarkerEnd(VkCommandBuffer cmdBuf);
 
         // Record command buffer
-        extern void executeImmediately(VkCommandBuffer cmdBuf, VkQueue queue, std::function<void(VkCommandBuffer commandBuffer)>&& func);
+        extern void executeImmediately(VkCommandPool commandPool, VkQueue queue, std::function<void(VkCommandBuffer commandBuffer)>&& func);
         extern void executeImmediately(std::function<void(VkCommandBuffer commandBuffer)>&& func);
 
         // Use to compute RHI resource used
@@ -169,6 +174,9 @@ namespace VT
         // Push descriptor set functions
         extern PFN_vkCmdPushDescriptorSetKHR PushDescriptorSetKHR;
         extern PFN_vkCmdPushDescriptorSetWithTemplateKHR PushDescriptorSetWithTemplateKHR;
+
+        // HDR functions
+        extern PFN_vkSetHdrMetadataEXT SetHdrMetadataEXT;
     }
 }
 
