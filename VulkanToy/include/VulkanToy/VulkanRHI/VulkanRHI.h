@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <VulkanToy/VulkanRHI/VulkanRHICommand.h>
+#include <VulkanToy/VulkanRHI/VulkanRHICommon.h>
 #include <VulkanToy/VulkanRHI/VulkanDevice.h>
 #include <VulkanToy/VulkanRHI/VulkanSwapChain.h>
 #include <VulkanToy/VulkanRHI/VulkanDescriptor.h>
@@ -164,7 +164,7 @@ namespace VT
 
         // Record command buffer
         extern void executeImmediately(VkCommandPool commandPool, VkQueue queue, std::function<void(VkCommandBuffer commandBuffer)>&& func);
-        extern void executeImmediately(std::function<void(VkCommandBuffer commandBuffer)>&& func);
+        extern void executeImmediatelyMajorGraphics(std::function<void(VkCommandBuffer commandBuffer)>&& func);
 
         // Use to compute RHI resource used
         extern void addGPUResourceMemoryUsed(size_t in);

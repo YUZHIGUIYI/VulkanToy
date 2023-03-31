@@ -735,7 +735,7 @@ namespace VT
         vkFreeCommandBuffers(VulkanRHI::Device, commandPool, 1, &commandBuffer);
     }
 
-    void VulkanRHI::executeImmediately(std::function<void(VkCommandBuffer)> &&func)
+    void VulkanRHI::executeImmediatelyMajorGraphics(std::function<void(VkCommandBuffer)> &&func)
     {
         executeImmediately(VulkanRHI::get()->getMajorGraphicsCommandPool(), VulkanRHI::get()->getMajorGraphicsQueue(), std::move(func));
     }

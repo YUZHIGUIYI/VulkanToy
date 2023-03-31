@@ -50,6 +50,8 @@
 #define DEFAULT_FENCE_TIMEOUT 100000000000
 // Default descriptor pool size
 #define DESCRIPTOR_POOL_SIZE 256
+// Default maximum color attachment number
+#define MAX_COLOR_ATTACHMENTS 8
 
 namespace VT
 {
