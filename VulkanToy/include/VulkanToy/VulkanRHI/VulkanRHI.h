@@ -125,6 +125,7 @@ namespace VT
 
         VulkanSwapChain& getSwapChain() { return m_swapChain; }
         std::vector<VkImageView>& getSwapChainImageViews() { return m_swapChain.swapChainImageViews; }
+        std::vector<VkImage>& getSwapChainImages() { return m_swapChain.swapChainImages; }
 
         [[nodiscard]] VkFormat getSwapChainFormat() const { return m_swapChain.colorFormat; }
         [[nodiscard]] VkExtent2D getSwapChainExtent() const { return m_swapChain.swapChainExtent; }

@@ -88,6 +88,7 @@ namespace VT
 #include <VulkanToy/Core/DisableCopy.h>
 #include <VulkanToy/Core/Singleton.h>
 #include <VulkanToy/Core/Log.h>
+#include <VulkanToy/Core/UUID.h>
 
 
 

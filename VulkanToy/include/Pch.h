@@ -17,6 +17,7 @@
 #include <string>
 #include <string_view>
 #include <stack>
+#include <variant>
 #include <utility>
 #include <type_traits>
 #include <thread>
@@ -81,5 +82,9 @@ namespace glm
 
 // Vulkan memory allocator
 #include <vma/vk_mem_alloc.h>
+
+// UUID - see https://github.com/mariusbancila/stduuid
+#define UUID_SYSTEM_GENERATOR
+#include <uuid.h>
 
 

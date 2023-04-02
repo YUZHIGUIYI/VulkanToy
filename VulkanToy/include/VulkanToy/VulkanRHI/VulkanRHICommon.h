@@ -35,5 +35,29 @@ namespace VT
                                                             VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_STORE, VkAttachmentDescriptionFlags flags = 0);
 
         VkAttachmentReference2 initAttachmentReference(uint32_t attachment, VkImageLayout layout);
+
+        VkPipelineVertexInputStateCreateInfo initPipelineVertexInputStateCreateInfo(
+                VkVertexInputBindingDescription* inputBindingDescriptions = nullptr,
+                uint32_t inputBindingDescriptionsCount = 0,
+                VkVertexInputAttributeDescription* inputAttributeDescriptions = nullptr,
+                uint32_t inputAttributeDescriptionsCount = 0);
+
+        VkPipelineInputAssemblyStateCreateInfo initPipelineInputAssemblyStateCreateInfo(VkPrimitiveTopology topology);
+
+        VkPipelineDepthStencilStateCreateInfo initPipelineDepthStencilStateCreateInfo(bool depthTest, bool depthWrite, VkCompareOp compareOperation);
+
+        VkPipelineRasterizationStateCreateInfo initPipelineRasterizationStateCreateInfo(VkPolygonMode polygonMode,
+                                                                                        VkCullModeFlagBits cullMode = VK_CULL_MODE_BACK_BIT);
+
+        VkPipelineColorBlendAttachmentState initPipelineColorBlendAttachmentState();
+
+        VkPipelineMultisampleStateCreateInfo initPipelineMultisampleStateCreateInfo();
     }
 }
+
+
+
+
+
+
+
