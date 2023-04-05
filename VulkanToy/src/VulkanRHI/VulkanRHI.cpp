@@ -18,6 +18,7 @@ namespace VT
     VkHdrMetadataEXT VulkanRHI::HdrMetadataEXT{ .sType = VK_STRUCTURE_TYPE_HDR_METADATA_EXT, .pNext = nullptr };
 
     ShaderCache* VulkanRHI::ShaderManager = nullptr;
+    SamplerCache* VulkanRHI::SamplerManager = nullptr;
 
     // Push descriptors.
     PFN_vkCmdPushDescriptorSetKHR VulkanRHI::PushDescriptorSetKHR = nullptr;
@@ -348,6 +349,19 @@ namespace VT
         vmaDestroyAllocator(m_vmaAllocator);
     }
 
+    void VulkanContext::createDrawCommandBuffers()
+    {
+        m_drawCmdBuffers.resize(m_swapChain.imageCount);
+
+        VkCommandBufferAllocateInfo cmdAllocateInfo{};
+        cmdAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        cmdAllocateInfo.commandBufferCount = static_cast<uint32_t>(m_drawCmdBuffers.size());
+        cmdAllocateInfo.commandPool = m_device.majorGraphicsPool.pool;
+        cmdAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+
+        RHICheck(vkAllocateCommandBuffers(m_device.logicalDevice, &cmdAllocateInfo, m_drawCmdBuffers.data()));
+    }
+
     void VulkanContext::init(GLFWwindow *window)
     {
         m_window = window;
@@ -450,8 +464,8 @@ namespace VT
         VulkanRHI::Device = m_device.logicalDevice;
 
         // Find some proc address
-        extDebugUtilsGetProcAddresses(m_device);
-        additionalGetProcAddresses(m_device);
+        extDebugUtilsGetProcAddresses(m_device.logicalDevice);
+        additionalGetProcAddresses(m_device.logicalDevice);
 
         // Initialize VMA
         initVMA();
@@ -461,9 +475,12 @@ namespace VT
         m_shaderCache.init();
         VulkanRHI::ShaderManager = &m_shaderCache;
 
-        // TODO: initialize sampler cache
+        // Initialize sampler cache
+        m_samplerCache.init();
+        VulkanRHI::SamplerManager = &m_samplerCache;
 
-        // TODO: initialize descriptor cache(layout and descriptor set)
+        // Initialize descriptor cache(layout and descriptor set)
+        m_descriptorPoolCache.init();
 
         // Initialize swap chain
         m_swapChain.init();
@@ -474,6 +491,9 @@ namespace VT
 
         // Initialize command pool
         m_device.initCommandPool();
+
+        // Create draw frame command buffers
+        createDrawCommandBuffers();
 
         // TODO: other
 
@@ -490,8 +510,10 @@ namespace VT
         m_swapChain.release();
 
         // TODO: release descriptor cache(layout and descriptor set)
+        m_descriptorPoolCache.release();
 
         // TODO: release sampler cache
+        m_samplerCache.release();
 
         // Release VMA
         releaseVMA();
@@ -752,7 +774,7 @@ namespace VT
 
     size_t VulkanRHI::getGPUResourceMemoryUsed()
     {
-        GPUResourceMemoryUsed.load();
+        return GPUResourceMemoryUsed.load();
     }
 }
 

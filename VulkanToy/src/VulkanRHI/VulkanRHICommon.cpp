@@ -164,6 +164,362 @@ namespace VT::Initializers
 
         return info;
     }
+
+    VkImageSubresourceRange initBasicImageSubresource()
+    {
+        VkImageSubresourceRange range{};
+
+        range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+
+        range.baseMipLevel = 0;
+        range.levelCount = VK_REMAINING_MIP_LEVELS;
+
+        range.baseArrayLayer = 0;
+        range.layerCount = 6;
+        return range;
+    }
+
+    // Sampler create info
+    VkSamplerCreateInfo initBasicSamplerInfo()
+    {
+        VkSamplerCreateInfo info{};
+        info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+
+        info.magFilter = VK_FILTER_NEAREST;
+        info.minFilter = VK_FILTER_NEAREST;
+        info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+
+        info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+
+        info.minLod = -10000.0f;
+        info.maxLod = 10000.0f;
+        info.mipLodBias = 0.0f;
+
+        info.maxAnisotropy = 1.0f;
+        info.anisotropyEnable = VK_FALSE;
+
+        info.compareEnable = VK_FALSE;
+        info.unnormalizedCoordinates = VK_FALSE;
+
+        return info;
+    }
+
+    VkSamplerCreateInfo initPointClampEdgeSamplerInfo()
+    {
+        VkSamplerCreateInfo info = initBasicSamplerInfo();
+
+        info.magFilter = VK_FILTER_NEAREST;
+        info.minFilter = VK_FILTER_NEAREST;
+        info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+
+        info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+
+        return info;
+    }
+
+    VkSamplerCreateInfo initPointClampBorder0000SamplerInfo()
+    {
+        VkSamplerCreateInfo info = initBasicSamplerInfo();
+
+        info.magFilter = VK_FILTER_NEAREST;
+        info.minFilter = VK_FILTER_NEAREST;
+        info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+
+        info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        info.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
+
+        return info;
+    }
+
+    VkSamplerCreateInfo initPointClampBorder1111SamplerInfo()
+    {
+        VkSamplerCreateInfo info = initBasicSamplerInfo();
+
+        info.magFilter = VK_FILTER_NEAREST;
+        info.minFilter = VK_FILTER_NEAREST;
+        info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+
+        info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+
+        return info;
+    }
+
+    VkSamplerCreateInfo initPointRepeatSamplerInfo()
+    {
+        VkSamplerCreateInfo info = initBasicSamplerInfo();
+
+        info.magFilter = VK_FILTER_NEAREST;
+        info.minFilter = VK_FILTER_NEAREST;
+        info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+
+        info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+
+        return info;
+    }
+
+    VkSamplerCreateInfo initLinearClampEdgeSamplerInfo()
+    {
+        VkSamplerCreateInfo info = initBasicSamplerInfo();
+
+        info.magFilter = VK_FILTER_LINEAR;
+        info.minFilter = VK_FILTER_LINEAR;
+        info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+
+        info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+
+        return info;
+    }
+
+    VkSamplerCreateInfo initLinearClampEdgeMipPointSamplerInfo()
+    {
+        VkSamplerCreateInfo info = initBasicSamplerInfo();
+
+        info.magFilter = VK_FILTER_LINEAR;
+        info.minFilter = VK_FILTER_LINEAR;
+        info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+
+        info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+
+        return info;
+    }
+
+    VkSamplerCreateInfo initLinearClampBorder0000MipPointSamplerInfo()
+    {
+        VkSamplerCreateInfo info = initBasicSamplerInfo();
+
+        info.magFilter = VK_FILTER_LINEAR;
+        info.minFilter = VK_FILTER_LINEAR;
+        info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+
+        info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        info.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
+
+        return info;
+    }
+
+    VkSamplerCreateInfo initLinearClampBorder1111MipPointSamplerInfo()
+    {
+        VkSamplerCreateInfo info = initBasicSamplerInfo();
+
+        info.magFilter = VK_FILTER_LINEAR;
+        info.minFilter = VK_FILTER_LINEAR;
+        info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+
+        info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        info.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+
+        return info;
+    }
+
+    VkSamplerCreateInfo initLinearRepeatMipPointSamplerInfo()
+    {
+        VkSamplerCreateInfo info = initBasicSamplerInfo();
+
+        info.magFilter = VK_FILTER_LINEAR;
+        info.minFilter = VK_FILTER_LINEAR;
+        info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+
+        info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+
+        return info;
+    }
+
+    // Pipeline input assembly state create info
+    VkPipelineInputAssemblyStateCreateInfo initPipelineInputAssemblyState(VkPrimitiveTopology topology,
+            VkPipelineInputAssemblyStateCreateFlags flags, VkBool32 primitiveRestartEnable)
+    {
+        VkPipelineInputAssemblyStateCreateInfo pipelineInputAssemblyStateCreateInfo{};
+        pipelineInputAssemblyStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+        pipelineInputAssemblyStateCreateInfo.topology = topology;
+        pipelineInputAssemblyStateCreateInfo.flags = flags;
+        pipelineInputAssemblyStateCreateInfo.primitiveRestartEnable = primitiveRestartEnable;
+        return pipelineInputAssemblyStateCreateInfo;
+    }
+
+    VkPipelineRasterizationStateCreateInfo initPipelineRasterizationState(
+            VkPolygonMode polygonMode,
+            VkCullModeFlags cullMode,
+            VkFrontFace frontFace,
+            VkPipelineRasterizationStateCreateFlags flags)
+    {
+        VkPipelineRasterizationStateCreateInfo pipelineRasterizationStateCreateInfo{};
+        pipelineRasterizationStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+        pipelineRasterizationStateCreateInfo.polygonMode = polygonMode;
+        pipelineRasterizationStateCreateInfo.cullMode = cullMode;
+        pipelineRasterizationStateCreateInfo.frontFace = frontFace;
+        pipelineRasterizationStateCreateInfo.flags = flags;
+        pipelineRasterizationStateCreateInfo.depthClampEnable = VK_FALSE;
+        pipelineRasterizationStateCreateInfo.lineWidth = 1.0f;
+        return pipelineRasterizationStateCreateInfo;
+    }
+
+    VkPipelineColorBlendAttachmentState initPipelineColorBlendAttachmentState(
+            VkColorComponentFlags colorWriteMask,
+            VkBool32 blendEnable)
+    {
+        VkPipelineColorBlendAttachmentState pipelineColorBlendAttachmentState{};
+        pipelineColorBlendAttachmentState.colorWriteMask = colorWriteMask;
+        pipelineColorBlendAttachmentState.blendEnable = blendEnable;
+        return pipelineColorBlendAttachmentState;
+    }
+
+    VkPipelineColorBlendStateCreateInfo initPipelineColorBlendState(
+            uint32_t attachmentCount,
+            const VkPipelineColorBlendAttachmentState *pAttachments)
+    {
+        VkPipelineColorBlendStateCreateInfo pipelineColorBlendStateCreateInfo{};
+        pipelineColorBlendStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+        pipelineColorBlendStateCreateInfo.attachmentCount = attachmentCount;
+        pipelineColorBlendStateCreateInfo.pAttachments = pAttachments;
+        return pipelineColorBlendStateCreateInfo;
+    }
+
+    VkPipelineDepthStencilStateCreateInfo initPipelineDepthStencilState(
+            VkBool32 depthTestEnable,
+            VkBool32 depthWriteEnable,
+            VkCompareOp depthCompareOp)
+    {
+        VkPipelineDepthStencilStateCreateInfo pipelineDepthStencilStateCreateInfo{};
+        pipelineDepthStencilStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+        pipelineDepthStencilStateCreateInfo.depthTestEnable = depthTestEnable;
+        pipelineDepthStencilStateCreateInfo.depthWriteEnable = depthWriteEnable;
+        pipelineDepthStencilStateCreateInfo.depthCompareOp = depthCompareOp;
+        pipelineDepthStencilStateCreateInfo.back.compareOp = VK_COMPARE_OP_ALWAYS;
+        return pipelineDepthStencilStateCreateInfo;
+    }
+
+    VkPipelineViewportStateCreateInfo initPipelineViewportState(
+            uint32_t viewportCount,
+            uint32_t scissorCount,
+            VkPipelineViewportStateCreateFlags flags)
+    {
+        VkPipelineViewportStateCreateInfo pipelineViewportStateCreateInfo{};
+        pipelineViewportStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+        pipelineViewportStateCreateInfo.viewportCount = viewportCount;
+        pipelineViewportStateCreateInfo.scissorCount = scissorCount;
+        pipelineViewportStateCreateInfo.flags = flags;
+        return pipelineViewportStateCreateInfo;
+    }
+
+    VkPipelineMultisampleStateCreateInfo initPipelineMultisampleState(
+            VkSampleCountFlagBits rasterizationSamples,
+            VkPipelineMultisampleStateCreateFlags flags)
+    {
+        VkPipelineMultisampleStateCreateInfo pipelineMultisampleStateCreateInfo{};
+        pipelineMultisampleStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+        pipelineMultisampleStateCreateInfo.rasterizationSamples = rasterizationSamples;
+        pipelineMultisampleStateCreateInfo.flags = flags;
+        return pipelineMultisampleStateCreateInfo;
+    }
+
+    VkPipelineDynamicStateCreateInfo initPipelineDynamicState(
+            const std::vector<VkDynamicState> &pDynamicStates,
+            VkPipelineDynamicStateCreateFlags flags)
+    {
+        VkPipelineDynamicStateCreateInfo pipelineDynamicStateCreateInfo{};
+        pipelineDynamicStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+        pipelineDynamicStateCreateInfo.pDynamicStates = pDynamicStates.data();
+        pipelineDynamicStateCreateInfo.dynamicStateCount = static_cast<uint32_t>(pDynamicStates.size());
+        pipelineDynamicStateCreateInfo.flags = flags;
+        return pipelineDynamicStateCreateInfo;
+    }
+
+    VkPipelineLayoutCreateInfo initPipelineLayout(
+            const VkDescriptorSetLayout *pSetLayouts,
+            uint32_t setLayoutCount)
+    {
+        VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{};
+        pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        pipelineLayoutCreateInfo.setLayoutCount = setLayoutCount;
+        pipelineLayoutCreateInfo.pSetLayouts = pSetLayouts;
+        return pipelineLayoutCreateInfo;
+    }
+
+    VkPushConstantRange initPushConstantRange(VkShaderStageFlags stageFlags, uint32_t size, uint32_t offset)
+    {
+        VkPushConstantRange pushConstantRange{};
+        pushConstantRange.stageFlags = stageFlags;
+        pushConstantRange.offset = offset;
+        pushConstantRange.size = size;
+        return pushConstantRange;
+    }
+
+    VkGraphicsPipelineCreateInfo initPipeline(VkPipelineLayout layout, VkRenderPass renderPass, VkPipelineCreateFlags flags)
+    {
+        VkGraphicsPipelineCreateInfo pipelineCreateInfo{};
+        pipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        pipelineCreateInfo.layout = layout;
+        pipelineCreateInfo.renderPass = renderPass;
+        pipelineCreateInfo.flags = flags;
+        pipelineCreateInfo.basePipelineIndex = -1;
+        pipelineCreateInfo.basePipelineHandle = VK_NULL_HANDLE;
+        return pipelineCreateInfo;
+    }
+
+    VkPipelineShaderStageCreateInfo initPipelineShaderStage(VkShaderModule &shaderModule, VkShaderStageFlagBits stage)
+    {
+        VkPipelineShaderStageCreateInfo shaderStage{};
+        shaderStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        shaderStage.stage = stage;
+        shaderStage.module = shaderModule;
+        shaderStage.pName = "main";     // default main function
+        return shaderStage;
+    }
+
+    VkCommandBufferBeginInfo initCommandBufferBeginInfo()
+    {
+        VkCommandBufferBeginInfo cmdBufferBeginInfo{};
+        cmdBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        return cmdBufferBeginInfo;
+    }
+
+    VkRenderPassBeginInfo initRenderPassBeginInfo()
+    {
+        VkRenderPassBeginInfo renderPassBeginInfo{};
+        renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        return renderPassBeginInfo;
+    }
+
+    VkViewport initViewport(float width, float height, float minDepth, float maxDepth)
+    {
+        VkViewport viewport{};
+        viewport.width = width;
+        viewport.height = height;
+        viewport.minDepth = minDepth,
+        viewport.maxDepth = maxDepth;
+        return viewport;
+    }
+
+    VkRect2D initRect2D(int32_t width, int32_t height, int32_t offsetX, int32_t offsetY)
+    {
+        VkRect2D rect2D{};
+        rect2D.extent.width = width;
+        rect2D.extent.height = height;
+        rect2D.offset.x = offsetX;
+        rect2D.offset.y = offsetY;
+        return rect2D;
+    }
 }
 
 

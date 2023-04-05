@@ -5,8 +5,8 @@
 #pragma once
 
 #include <VulkanToy/AssetSystem/AssetCommon.h>
-#include <VulkanToy/VulkanRHI/GPUResource.h>
-#include <VulkanToy/VulkanRHI/CommandBuffer.h>
+#include <VulkanToy/AssetSystem/GPUCache.h>
+#include <VulkanToy/AssetSystem/AsyncUploader.h>
 
 namespace VT
 {
@@ -23,7 +23,7 @@ namespace VT
             : AssetBinInterface(buildUUID(), name) {}
 
         // TODO: finish
-        void buildMipmapDataRGBA8(float cutOff) {}
+        void buildMipmapDataRGBA8(float cutOff);
 
         AssetType getAssetType() const override
         {
@@ -72,6 +72,8 @@ namespace VT
 
         auto& getImage() { return *m_image; }
 
+        Ref<VulkanImage> getVulkanImage() const { return m_image; }
+
         GPUImageAsset* getReadyAsset()
         {
             if (isAssetLoading())
@@ -81,5 +83,79 @@ namespace VT
             }
             return this;
         }
+    };
+
+    class TextureContext final
+    {
+    private:
+        Scope<GPUAssetCache<GPUImageAsset>> m_GPUCache;
+
+    public:
+        TextureContext() = default;
+
+        void init();
+        void release();
+
+        bool isAssetExist(const UUID &id)
+        {
+            return m_GPUCache->contain(id);
+        }
+
+        void insertGPUAsset(const UUID &uuid, Ref<GPUImageAsset> image)
+        {
+            m_GPUCache->insert(uuid, image);
+        }
+
+        Ref<GPUImageAsset> getImage(const UUID &id)
+        {
+            return m_GPUCache->tryGet(id);
+        }
+    };
+
+    using TextureManager = Singleton<TextureContext>;
+
+    struct AssetTextureLoadTask : AssetLoadTask
+    {
+        AssetTextureLoadTask() = default;
+
+        // Working image
+        Ref<GPUImageAsset> imageAssetGPU = nullptr;
+
+        uint32_t getUploadSize() const override
+        {
+            return static_cast<uint32_t>(imageAssetGPU->getSize());
+        }
+
+        void finishCallback() override
+        {
+            imageAssetGPU->setAsyncLoadState(false);
+        }
+    };
+
+    // Load from raw data, no mipmap, persistent, no compress
+    struct TextureRawDataLoadTask : AssetTextureLoadTask
+    {
+        std::vector<uint8_t> cacheRawData;
+
+        TextureRawDataLoadTask() = default;
+
+        void uploadDevice(uint32_t stageBufferOffset,
+                        void *mapped,
+                        CommandBufferBase &commandBuffer,
+                        VulkanBuffer &stageBuffer) override;
+
+        // Build load task from file path - slow
+        static Ref<TextureRawDataLoadTask> buildFromPath(
+                const std::filesystem::path &path,
+                const UUID &uuid,
+                VkFormat format);
+
+        // Build load task from same value
+        static Ref<TextureRawDataLoadTask> buildFlatTexture(
+                const std::string &name,
+                const UUID &uuid,
+                const glm::uvec4 &color,
+                const glm::uvec3 &size = { 1u, 1u, 1u },
+                VkFormat format = VK_FORMAT_R8G8B8A8_UNORM);
     };
 }

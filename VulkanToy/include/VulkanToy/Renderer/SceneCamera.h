@@ -14,7 +14,7 @@ namespace VT
     class SceneCamera : public Camera
     {
     public:
-        SceneCamera() = default;
+        SceneCamera();
         SceneCamera(float fov, float aspectRatio, float nearClip, float farClip);
 
         void OnUpdate(Timestep ts);
@@ -66,6 +66,8 @@ namespace VT
         glm::vec3 m_FocalPoint{ 0.0f, 0.0f, 0.0f };
         glm::vec2 m_InitialMousePosition{ 0.0f, 0.0f };
     };
+
+    using SceneCameraHandle = Singleton<SceneCamera>;
 }
 
 

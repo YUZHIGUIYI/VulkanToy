@@ -20,6 +20,8 @@ namespace VT
         void *m_mapped = nullptr;     // Mapped pointer for buffer
         bool m_isHeap = false;
 
+        VkDescriptorBufferInfo m_bufferInfo{};
+
         operator VkBuffer() const { return m_buffer; }
         operator VkDeviceMemory() const { return m_memory; }
         VkBuffer getVkBuffer() const { return m_buffer; }
@@ -43,6 +45,8 @@ namespace VT
         void copyTo(const void *data, VkDeviceSize size);
         void unmap();
 
+        void setupDescriptor(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
+
         VkResult bind(VkDeviceSize offset = 0);
         VkResult flush(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
         VkResult invalidate(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
@@ -53,7 +57,7 @@ namespace VT
             VkMemoryPropertyFlags memoryPropertyFlags,
             VMAUsageFlags vmaFlags,
             VkDeviceSize size,
-            void *data = nullptr);  // Copy dara
+            void *data = nullptr);  // Copy data
         static Ref<VulkanBuffer> create2(const char *name,
             VkBufferUsageFlags usageFlags,
             VkMemoryPropertyFlags memoryPropertyFlags,
@@ -67,6 +71,7 @@ namespace VT
     {
         std::string m_name{};
         VkImage m_image = VK_NULL_HANDLE;
+        VkImageView m_imageView = VK_NULL_HANDLE;
         VmaAllocation m_allocation = nullptr;
         VkDeviceMemory m_memory = VK_NULL_HANDLE;
         VkDeviceSize m_size = 0;
@@ -77,6 +82,8 @@ namespace VT
         std::unordered_map<size_t, VkImageView> m_cacheImageViews{};
 
         bool m_isHeap = false;
+
+        VkDescriptorSet m_descriptorSet = VK_NULL_HANDLE;
 
         VkImage getImage() const { return m_image; }
         VkFormat getFormat() const { return m_createInfo.format; }

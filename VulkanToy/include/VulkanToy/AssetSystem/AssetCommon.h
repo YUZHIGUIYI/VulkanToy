@@ -8,6 +8,13 @@
 
 namespace VT
 {
+    constexpr size_t GAssetTextureChannels = 4;
+
+    enum class TextureType : uint8_t
+    {
+        DIFFUSE, HEIGHT, SPECULAR, AMBIENT, EMISSIVE
+    };
+
     enum class AssetType
     {
         StaticMesh = 0, Texture, Material, Max

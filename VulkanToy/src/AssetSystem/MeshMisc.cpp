@@ -28,15 +28,12 @@ namespace VT
             case VertexComponent::Normal:
                 return VkVertexInputAttributeDescription{ .location = location, .binding = binding,
                         .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = static_cast<uint32_t>(offsetof(StaticMeshVertex, normal)) };
-            case VertexComponent::Tangent:
-                return VkVertexInputAttributeDescription{ .location = location, .binding = binding,
-                        .format = VK_FORMAT_R32G32B32A32_SFLOAT, .offset = static_cast<uint32_t>(offsetof(StaticMeshVertex, tangent)) };
             case VertexComponent::UV:
                 return VkVertexInputAttributeDescription{ .location = location, .binding = binding,
                         .format = VK_FORMAT_R32G32_SFLOAT, .offset = static_cast<uint32_t>(offsetof(StaticMeshVertex, uv)) };
-            case VertexComponent::Color:
+            case VertexComponent::Tangent:
                 return VkVertexInputAttributeDescription{ .location = location, .binding = binding,
-                        .format = VK_FORMAT_R32G32B32A32_SFLOAT, .offset = static_cast<uint32_t>(offsetof(StaticMeshVertex, color)) };
+                        .format = VK_FORMAT_R32G32B32A32_SFLOAT, .offset = static_cast<uint32_t>(offsetof(StaticMeshVertex, tangent)) };
             case VertexComponent::Joint0:
                 return VkVertexInputAttributeDescription{ .location = location, .binding = binding,
                         .format = VK_FORMAT_R32G32B32A32_SFLOAT, .offset = static_cast<uint32_t>(offsetof(StaticMeshVertex, joint0)) };

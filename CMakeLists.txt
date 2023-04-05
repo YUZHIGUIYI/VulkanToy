@@ -23,6 +23,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/bin)
 find_package(Vulkan REQUIRED)
 find_program(GLSLC_PROGRAM glslc REQUIRED)
 
+execute_process(COMMAND ${GLSLC_PROGRAM} ${CMAKE_CURRENT_LIST_DIR}/data/shaders/sample.vert -o ${CMAKE_CURRENT_LIST_DIR}/data/shaders/spirv/sample.vert.spv)
+execute_process(COMMAND ${GLSLC_PROGRAM} ${CMAKE_CURRENT_LIST_DIR}/data/shaders/sample.frag -o ${CMAKE_CURRENT_LIST_DIR}/data/shaders/spirv/sample.frag.spv)
 include(cmake/AddThirdParties.cmake)
 add_subdirectory(VulkanToy)
 add_subdirectory(Sandbox)

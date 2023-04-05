@@ -10,6 +10,7 @@
 #include <VulkanToy/VulkanRHI/VulkanDescriptor.h>
 #include <VulkanToy/VulkanRHI/Shader.h>
 #include <VulkanToy/VulkanRHI/VulkanDescriptor.h>
+#include <VulkanToy/VulkanRHI/Sampler.h>
 
 namespace VT
 {
@@ -49,15 +50,19 @@ namespace VT
 
         ShaderCache m_shaderCache;
 
+        SamplerCache m_samplerCache;
+
+        std::vector<VkCommandBuffer> m_drawCmdBuffers;
+
     private:
         int currentWidth;
         int currentHeight;
         int lastWidth  = ~0;
         int lastHeight = ~0;
 
+    private:
         bool isSwapChainRebuilt();
 
-    private:
         void initInstance(std::vector<char const *> const &requiredExtensions, std::vector<char const *> const &requiredLayers);
         void releaseInstance();
 
@@ -66,6 +71,8 @@ namespace VT
 
         void initVMA();
         void releaseVMA();
+
+        void createDrawCommandBuffers();
 
     public:
         GLFWwindow* getWindow() { return m_window; };
@@ -121,6 +128,8 @@ namespace VT
         // Other
         VkPipelineLayout createPipelineLayout(const VkPipelineLayoutCreateInfo& info);
 
+        VkCommandBuffer& getDrawCommandBuffer(uint32_t index) { return m_drawCmdBuffers.at(index); }
+
         [[nodiscard]] uint32_t getCurrentFrameIndex() const { return m_presentContext.currentFrame; }
 
         VulkanSwapChain& getSwapChain() { return m_swapChain; }
@@ -144,6 +153,7 @@ namespace VT
         extern VkDevice Device;
         extern VmaAllocator VMA;
         extern ShaderCache* ShaderManager;
+        extern SamplerCache* SamplerManager;
 
         enum class DisplayMode
         {

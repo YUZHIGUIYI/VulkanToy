@@ -12,6 +12,14 @@
 
 namespace VT
 {
+    SceneCamera::SceneCamera()
+    : m_FOV(45.0f), m_AspectRatio(1.778f), m_NearClip(0.1f), m_FarClip(1000.0f)
+    {
+        Camera(glm::perspective(glm::radians(m_FOV), m_AspectRatio, m_NearClip, m_FarClip));
+        m_Projection[1][1] *= -1.0f;
+        UpdateView();
+    }
+
     SceneCamera::SceneCamera(float fov, float aspectRatio, float nearClip, float farClip)
         : m_FOV(fov), m_AspectRatio(aspectRatio), m_NearClip(nearClip), m_FarClip(farClip),
             Camera(glm::perspective(glm::radians(fov), aspectRatio, nearClip, farClip))

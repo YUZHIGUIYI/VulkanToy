@@ -78,6 +78,10 @@ namespace VT
 
             vkBindBufferMemory(VulkanRHI::Device, m_buffer, m_memory, 0);
         }
+
+        // Initialize a default descriptor that covers the whole buffer size
+        setupDescriptor();
+
         VulkanRHI::setResourceName(VK_OBJECT_TYPE_BUFFER, (uint64_t)m_buffer, m_name.c_str());
         VulkanRHI::addGPUResourceMemoryUsed(m_size);
 
@@ -124,7 +128,7 @@ namespace VT
         {
             result = vkMapMemory(VulkanRHI::Device, m_memory, offset, size, 0, &m_mapped);
         }
-        VT_CORE_ASSERT(m_mapped != nullptr, "Fail to map buffer memory");
+        //VT_CORE_ASSERT(m_mapped != nullptr, "Fail to map buffer memory");
         return result;
     }
 
@@ -147,6 +151,13 @@ namespace VT
             vkUnmapMemory(VulkanRHI::Device, m_memory);
             m_mapped = nullptr;
         }
+    }
+
+    void VulkanBuffer::setupDescriptor(VkDeviceSize size, VkDeviceSize offset)
+    {
+        m_bufferInfo.offset = offset;
+        m_bufferInfo.buffer = m_buffer;
+        m_bufferInfo.range = size;
     }
 
     VkResult VulkanBuffer::bind(VkDeviceSize offset)
@@ -356,6 +367,8 @@ namespace VT
         // TODO: hash fix and unordered_map
         VkImageView imageView;
         RHICheck(vkCreateImageView(VulkanRHI::Device, &info, nullptr, &imageView));
+
+        m_imageView = imageView;
 
         return imageView;
     }

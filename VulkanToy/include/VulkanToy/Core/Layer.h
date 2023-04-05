@@ -6,7 +6,7 @@
 
 #include <VulkanToy/Core/Base.h>
 #include <VulkanToy/Events/Event.h>
-#include <VulkanToy/Core/Timestep.h>
+#include <VulkanToy/Core/RuntimeModule.h>
 
 namespace VT
 {
@@ -18,7 +18,7 @@ namespace VT
 
         virtual void OnAttach() {}
         virtual void OnDetach() {}
-        virtual void OnUpdate(Timestep ts) {}
+        virtual void OnUpdate(const RuntimeModuleTickData &tickData) {}
         virtual void OnImGuiRender() {}
         virtual void OnEvent(Event& event) {}
 

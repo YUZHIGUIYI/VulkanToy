@@ -6,6 +6,7 @@
 
 #include <VulkanToy/Core/Base.h>
 #include <VulkanToy/AssetSystem/MeshMisc.h>
+#include <VulkanToy/AssetSystem/AssetCommon.h>
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
@@ -22,7 +23,7 @@ namespace VT
         std::vector<VertexIndexType> m_indices{};
 
         // texture path, texture uuid
-        std::unordered_map<std::string, UUID> m_texPathUUIDMap{};
+        std::unordered_map<TextureType, std::string> m_texturePathMap{};
 
         explicit AssimpModelProcess(const std::filesystem::path &inPath);
 

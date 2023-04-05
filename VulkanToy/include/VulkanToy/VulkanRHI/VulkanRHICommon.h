@@ -52,6 +52,98 @@ namespace VT
         VkPipelineColorBlendAttachmentState initPipelineColorBlendAttachmentState();
 
         VkPipelineMultisampleStateCreateInfo initPipelineMultisampleStateCreateInfo();
+
+        VkImageSubresourceRange initBasicImageSubresource();
+
+        // Sampler create info
+        VkSamplerCreateInfo initBasicSamplerInfo();
+
+        VkSamplerCreateInfo initPointClampEdgeSamplerInfo();
+
+        VkSamplerCreateInfo initPointClampBorder0000SamplerInfo();
+
+        VkSamplerCreateInfo initPointClampBorder1111SamplerInfo();
+
+        VkSamplerCreateInfo initPointRepeatSamplerInfo();
+
+        VkSamplerCreateInfo initLinearClampEdgeSamplerInfo();
+
+        VkSamplerCreateInfo initLinearClampEdgeMipPointSamplerInfo();
+
+        VkSamplerCreateInfo initLinearClampBorder0000MipPointSamplerInfo();
+
+        VkSamplerCreateInfo initLinearClampBorder1111MipPointSamplerInfo();
+
+        VkSamplerCreateInfo initLinearRepeatMipPointSamplerInfo();
+
+        // Pipeline input assembly state create info
+        VkPipelineInputAssemblyStateCreateInfo initPipelineInputAssemblyState(VkPrimitiveTopology topology,
+            VkPipelineInputAssemblyStateCreateFlags flags, VkBool32 primitiveRestartEnable);
+
+        // Pipeline rasterization state create info
+        VkPipelineRasterizationStateCreateInfo initPipelineRasterizationState(
+                VkPolygonMode polygonMode,
+                VkCullModeFlags cullMode,
+                VkFrontFace frontFace,
+                VkPipelineRasterizationStateCreateFlags flags = 0);
+
+        // Pipeline color blend attachment state
+        VkPipelineColorBlendAttachmentState initPipelineColorBlendAttachmentState(
+                VkColorComponentFlags colorWriteMask,
+                VkBool32 blendEnable);
+
+        // Pipeline color blend state create info
+        VkPipelineColorBlendStateCreateInfo initPipelineColorBlendState(
+                uint32_t attachmentCount,
+                const VkPipelineColorBlendAttachmentState *pAttachments);
+
+        // Pipeline depth stencil state create info
+        VkPipelineDepthStencilStateCreateInfo initPipelineDepthStencilState(
+                VkBool32 depthTestEnable,
+                VkBool32 depthWriteEnable,
+                VkCompareOp depthCompareOp);
+
+        // Pipeline viewport state create info
+        VkPipelineViewportStateCreateInfo initPipelineViewportState(
+                uint32_t viewportCount,
+                uint32_t scissorCount,
+                VkPipelineViewportStateCreateFlags flags = 0);
+
+        // Pipeline multisample state create info
+        VkPipelineMultisampleStateCreateInfo initPipelineMultisampleState(
+                VkSampleCountFlagBits rasterizationSamples,
+                VkPipelineMultisampleStateCreateFlags flags = 0);
+
+        // Pipeline dynamic state create info
+        VkPipelineDynamicStateCreateInfo initPipelineDynamicState(
+                const std::vector<VkDynamicState> &pDynamicStates,
+                VkPipelineDynamicStateCreateFlags flags = 0);
+
+        // Pipeline layout create info
+        VkPipelineLayoutCreateInfo initPipelineLayout(
+            const VkDescriptorSetLayout *pSetLayouts,
+            uint32_t setLayoutCount = 1);
+
+        // Pipeline push constant range
+        VkPushConstantRange initPushConstantRange(VkShaderStageFlags stageFlags, uint32_t size, uint32_t offset);
+
+        // Pipeline create info
+        VkGraphicsPipelineCreateInfo initPipeline(VkPipelineLayout layout, VkRenderPass renderPass, VkPipelineCreateFlags flags = 0);
+
+        // Pipeline shader stage create info
+        VkPipelineShaderStageCreateInfo initPipelineShaderStage(VkShaderModule &shaderModule, VkShaderStageFlagBits stage);
+
+        // Command buffer begin info
+        VkCommandBufferBeginInfo initCommandBufferBeginInfo();
+
+        // Render pass begin info
+        VkRenderPassBeginInfo initRenderPassBeginInfo();
+
+        // Viewport
+        VkViewport initViewport(float width, float height, float minDepth, float maxDepth);
+
+        // Rect2D scissor
+        VkRect2D initRect2D(int32_t width, int32_t height, int32_t offsetX, int32_t offsetY);
     }
 }
 

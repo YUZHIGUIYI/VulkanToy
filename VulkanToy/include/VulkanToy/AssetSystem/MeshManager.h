@@ -6,10 +6,21 @@
 
 #include <VulkanToy/AssetSystem/MeshMisc.h>
 #include <VulkanToy/AssetSystem/GPUCache.h>
-#include <VulkanToy/VulkanRHI/GPUResource.h>
+#include <VulkanToy/AssetSystem/AsyncUploader.h>
 
 namespace VT
 {
+    class GPUMeshAsset;
+
+    namespace EngineMeshes
+    {
+        extern std::weak_ptr<GPUMeshAsset> GBoxPtrRef;
+        extern const UUID GBoxUUID;
+
+        extern std::weak_ptr<GPUMeshAsset> GSpherePtrRef;
+        extern const UUID GSphereUUID;
+    }
+
     class StaticMeshAssetBin final : public AssetBinInterface
     {
     private:
@@ -37,7 +48,7 @@ namespace VT
         }
     };
 
-    class GPUMeshAsset final : GPUAssetInterface
+    class GPUMeshAsset final : public GPUAssetInterface
     {
     private:
         Ref<VulkanBuffer> m_vertexBuffer = nullptr;
@@ -58,6 +69,9 @@ namespace VT
 
         uint32_t m_vertexBufferBindlessIndex = ~0;
         uint32_t m_indexBufferBindlessIndex = ~0;
+
+        // Texture paths related to mesh asset
+        std::unordered_map<TextureType, std::string> m_texturePathMap;
 
     public:
         // Immediately build GPU mesh asset
@@ -90,6 +104,20 @@ namespace VT
 
         const uint32_t& getVerticesCount() const { return m_vertexCount; }
 
+        void setTexturePaths(const std::unordered_map<TextureType, std::string>& pathMap)
+        {
+            for (auto& path : pathMap)
+            {
+                m_texturePathMap.try_emplace(path.first, path.second);
+            }
+        }
+
+        const std::unordered_map<TextureType, std::string>& getTexturePaths() const
+        {
+            return m_texturePathMap;
+        }
+
+
         GPUMeshAsset* getReadyAsset()
         {
             if (isAssetLoading())
@@ -113,7 +141,7 @@ namespace VT
         }
     };
 
-    class MeshContext
+    class MeshContext final
     {
     private:
         Scope<GPUAssetCache<GPUMeshAsset>> m_GPUCache;
@@ -129,7 +157,7 @@ namespace VT
             return m_GPUCache->contain(id);
         }
 
-        void insertGPUAsset(const UUID &id, Ref<GPUMeshAsset> &mesh)
+        void insertGPUAsset(const UUID &id, Ref<GPUMeshAsset> mesh)
         {
             m_GPUCache->insert(id, mesh);
         }
@@ -138,6 +166,55 @@ namespace VT
         {
             return m_GPUCache->tryGet(id);
         }
+    };
+
+    using MeshManager = Singleton<MeshContext>;
+
+    struct AssetMeshLoadTask : AssetLoadTask
+    {
+        AssetMeshLoadTask() = default;
+
+        // Working mesh
+        Ref<GPUMeshAsset> meshAssetGPU = nullptr;
+
+        void finishCallback() override
+        {
+            meshAssetGPU->setAsyncLoadState(false);
+        }
+
+        uint32_t getUploadSize() const override
+        {
+            return static_cast<uint32_t>(meshAssetGPU->getSize());
+        }
+    };
+
+    struct StaticMeshRawDataLoadTask : AssetMeshLoadTask
+    {
+        StaticMeshRawDataLoadTask() = default;
+
+        std::vector<uint8_t> cacheVertexData;
+        std::vector<uint8_t> cacheIndexData;
+
+        void uploadDevice(uint32_t stageBufferOffset,
+                        void *mapped,
+                        CommandBufferBase &commandBuffer,
+                        VulkanBuffer &stageBuffer) override;
+
+        // Build from raw data
+        static Ref<StaticMeshRawDataLoadTask> buildFromData(const std::string &name,
+            const UUID &uuid,
+            bool isPersistent,
+            uint8_t *indices,
+            size_t indexSize,
+            VkIndexType indexType,
+            uint8_t *vertices,
+            size_t vertexSize,
+            size_t singleVertexSize);
+
+        static Ref<StaticMeshRawDataLoadTask> buildFromPath(const std::string &name,
+            const std::filesystem::path &path,
+            const UUID &uuid,
+            bool isPersistent);
     };
 
 }

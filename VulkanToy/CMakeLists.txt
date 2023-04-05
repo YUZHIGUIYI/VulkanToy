@@ -15,5 +15,6 @@ target_link_libraries(VulkanToy PUBLIC tinyobjloader)
 target_link_libraries(VulkanToy PUBLIC spdlog_header_only)
 target_link_libraries(VulkanToy PUBLIC ImGuiDocking)
 target_link_libraries(VulkanToy PUBLIC assimp)
+target_link_libraries(VulkanToy PUBLIC VulkanMemoryAllocator)
 
 target_precompile_headers(VulkanToy PUBLIC "include/Pch.h")

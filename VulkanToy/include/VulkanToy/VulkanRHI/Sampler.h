@@ -8,22 +8,27 @@
 
 namespace VT
 {
-    struct SamplerDesc
+    class SamplerCache
     {
-        float maxLod = 0.0f;
-        float mipLodBias = 0.0f;
-        VkFilter filter = VK_FILTER_NEAREST;
-        VkSamplerAddressMode mode = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        VkSamplerMipmapMode mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-        VkCompareOp compareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
-        bool compareEnabled = false;
-        bool anisotropicFiltering = false;
-    };
+    private:
+        std::unordered_map<std::string, VkSampler> m_samplerMap;
 
-    struct Sampler
-    {
-        VkSampler m_sampler = VK_NULL_HANDLE;
-        void init(const SamplerDesc& samplerDesc = SamplerDesc{});
-        void relese();
+        VkDescriptorSet m_cacheCommonDescriptor = VK_NULL_HANDLE;
+        VkDescriptorSetLayout m_cacheCommonDescriptorSetLayout = VK_NULL_HANDLE;
+
+    private:
+        void initCommonDescriptorSet();
+
+    public:
+        SamplerCache() = default;
+        void init();
+        void release();
+
+        VkSampler createSampler(const VkSamplerCreateInfo &info, const std::string &samplerName);
+
+        // Common descriptor set
+        // See layout in glsl file
+        VkDescriptorSet getCommonDescriptorSet();
+        VkDescriptorSetLayout getCommonDescriptorSetLayout();
     };
 }

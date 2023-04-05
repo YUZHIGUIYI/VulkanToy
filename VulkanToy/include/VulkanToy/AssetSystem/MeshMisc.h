@@ -10,7 +10,7 @@ namespace VT
 {
     enum class VertexComponent
     {
-        Position, Normal, Tangent, UV, Color, Joint0, Weight0
+        Position, Normal, UV, Tangent, Joint0, Weight0
     };
 
     // Standard index type
@@ -21,9 +21,8 @@ namespace VT
     {
         glm::vec3 position{ 0.0f, 0.0f, 0.0f };
         glm::vec3 normal{ 0.0f, 1.0f, 0.0f };   // normal to up as default.
-        glm::vec4 tangent{ 1.0f, 0.0f, 0.0f, 1.0f };
         glm::vec2 uv{ 0.0f, 0.0f };
-        glm::vec4 color{ 1.0f, 1.0f, 1.0f, 1.0f };
+        glm::vec4 tangent{ 1.0f, 0.0f, 0.0f, 1.0f };
         glm::vec4 joint0{ 0.0f, 0.0f, 0.0f, 1.0f };
         glm::vec4 weight0{ 0.0f, 0.0f, 0.0f, 1.0f };
 
@@ -40,7 +39,7 @@ namespace VT
     };
 
     // Explicit assert struct size avoid some glm macro pad memory to float4
-    static_assert(sizeof(StaticMeshVertex) == (3 + 3 + 4 + 2 + 4 + 4 + 4) * sizeof(float));
+    static_assert(sizeof(StaticMeshVertex) == (3 + 3 + 2 + 4 + 4 + 4) * sizeof(float));
 
     // Render bounds of sub-mesh
     struct StaticMeshRenderBound
