@@ -15,6 +15,58 @@ namespace VT
         std::vector<VkPresentModeKHR>   presentModes;
     };
 
+    class VulkanSubmitInfo
+    {
+    private:
+        VkSubmitInfo submitInfo{};
+
+    public:
+        VulkanSubmitInfo()
+        {
+            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+            std::vector<VkPipelineStageFlags> waitStages{ VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+            submitInfo.pWaitDstStageMask = waitStages.data();
+        }
+
+        VkSubmitInfo& getSubmitInfo() { return submitInfo; }
+
+        VulkanSubmitInfo& setWaitStage(VkPipelineStageFlags *waitStages)
+        {
+            submitInfo.pWaitDstStageMask = waitStages;
+            return *this;
+        }
+
+        VulkanSubmitInfo& setWaitSemaphore(VkSemaphore *wait, uint32_t count)
+        {
+            submitInfo.waitSemaphoreCount = count;
+            submitInfo.pWaitSemaphores = wait;
+            return *this;
+        }
+
+        VulkanSubmitInfo& setSignalSemaphore(VkSemaphore *signal, uint32_t count)
+        {
+            submitInfo.signalSemaphoreCount = count;
+            submitInfo.pSignalSemaphores = signal;
+            return *this;
+        }
+
+        VulkanSubmitInfo& setCommandBuffer(VkCommandBuffer *cmd, uint32_t count)
+        {
+            submitInfo.commandBufferCount = count;
+            submitInfo.pCommandBuffers = cmd;
+            return *this;
+        }
+
+        VulkanSubmitInfo& clear()
+        {
+            submitInfo = {};
+            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+            std::vector<VkPipelineStageFlags> waitStages{ VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+            submitInfo.pWaitDstStageMask = waitStages.data();
+            return *this;
+        }
+    };
+
     enum class VMAUsageFlags
     {
         GPUOnly,

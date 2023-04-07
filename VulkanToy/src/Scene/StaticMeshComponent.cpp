@@ -27,6 +27,7 @@ namespace VT
     {
         cacheGPUMeshAsset = MeshManager::Get()->getMesh(staticMeshUUID);
         auto& texturePathMap = cacheGPUMeshAsset->getTexturePaths();
+        VT_CORE_INFO("Loading mesh asset successfully");
         for (auto& path : texturePathMap)
         {
             // TODO: check
@@ -67,14 +68,14 @@ namespace VT
         const int32_t id = 0;
         if (cacheGPUMeshAsset)
         {
-            glm::mat4 model = glm::mat4{ 1.0f };
+            glm::mat4 model = glm::scale(glm::mat4{ 1.0f }, glm::vec3{ 0.5f, 0.5f, 0.5f });
 
             vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &model);
-            vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), sizeof(int32_t), &id);
+            vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4), sizeof(int32_t), &id);
 
             const VkDeviceSize offsets[1] = {0};
-            vkCmdBindVertexBuffers(cmd, 0, 1, &cacheGPUMeshAsset->getVertexBuffer().m_buffer, offsets);
-            vkCmdBindIndexBuffer(cmd, cacheGPUMeshAsset->getIndexBuffer().m_buffer, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdBindVertexBuffers(cmd, 0, 1, &cacheGPUMeshAsset->getVertexBuffer(), offsets);
+            vkCmdBindIndexBuffer(cmd, cacheGPUMeshAsset->getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
             vkCmdDrawIndexed(cmd, cacheGPUMeshAsset->getIndicesCount(), 1, 0, 0, 0);
         }

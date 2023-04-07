@@ -13,7 +13,12 @@ layout (binding = 0) uniform UBO
 
 //layout (binding = 1) uniform sampler2D samplerBRDFLUT;
 
+layout (push_constant) uniform PushConsts
+{
+    layout(offset = 64) int id;
+} componentID;
+
 void main() {
-    outColor = vec4(0.6, 0.6, 0.6, 1.0);
+    outColor = vec4(inUV, 0.0, 1.0);
     //outColor = texture(samplerBRDFLUT, inUV) * outColor;
 }

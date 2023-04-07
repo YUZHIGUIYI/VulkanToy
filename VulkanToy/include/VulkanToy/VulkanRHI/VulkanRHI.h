@@ -11,6 +11,7 @@
 #include <VulkanToy/VulkanRHI/Shader.h>
 #include <VulkanToy/VulkanRHI/VulkanDescriptor.h>
 #include <VulkanToy/VulkanRHI/Sampler.h>
+#include <VulkanToy/Events/EventDelegate.h>
 
 namespace VT
 {
@@ -94,6 +95,8 @@ namespace VT
         void submit(uint32_t count, VkSubmitInfo *infos);
         void submitWithoutFence(uint32_t count, VkSubmitInfo* infos);
         void resetFence();
+
+        Events::EventDelegate<> onAfterSwapChainRebuild;
 
     public:
         // Major graphics queue used for present and ui render. priority 1.0.

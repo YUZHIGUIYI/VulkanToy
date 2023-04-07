@@ -115,7 +115,7 @@ namespace VT
         region.imageExtent = imageAssetGPU->getImage().getExtent();
 
         vkCmdCopyBufferToImage(commandBuffer.cmd,
-                                stageBuffer,
+                                stageBuffer.getBuffer(),
                                 imageAssetGPU->getImage().getImage(),
                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                 1,

@@ -2,7 +2,7 @@
 // Created by ZZK on 2023/3/1.
 //
 
-#include <Platform/Windows/WindowsWindow.h>
+#include <VulkanToy/Windows/WindowsWindow.h>
 #include <VulkanToy/Core/Input.h>
 #include <VulkanToy/Events/ApplicationEvent.h>
 #include <VulkanToy/Events/KeyEvent.h>
@@ -14,21 +14,21 @@ namespace VT
 
     WindowsWindow::WindowsWindow(const WindowProps &props)
     {
-        Init(props);
+        init(props);
     }
 
     WindowsWindow::~WindowsWindow()
     {
-        Shutdown();
+        shutdown();
     }
 
-    void WindowsWindow::Init(const WindowProps &props)
+    void WindowsWindow::init(const WindowProps &props)
     {
-        m_Data.Title = props.Title;
-        m_Data.Width = props.Width;
-        m_Data.Height = props.Height;
+        m_windowData.title = props.title;
+        m_windowData.width = props.width;
+        m_windowData.height = props.height;
 
-        VT_CORE_INFO("Creating window {0} ({1}, {2})", props.Title, props.Width, props.Height);
+        VT_CORE_INFO("Creating window {0} ({1}, {2})", props.title, props.width, props.height);
 
         // Init glfw and window
         if (s_GLFWWindowCount == 0)
@@ -42,35 +42,34 @@ namespace VT
 
             glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-            m_Window = glfwCreateWindow((int)props.Width, (int)props.Height, m_Data.Title.c_str(), nullptr, nullptr);
+            m_window = glfwCreateWindow((int)props.width, (int)props.height, m_windowData.title.c_str(), nullptr, nullptr);
         }
 
         // User pointer
-        // TODO: framebuffer resize
-        glfwSetWindowUserPointer(m_Window, &m_Data);
+        glfwSetWindowUserPointer(m_window, &m_windowData);
         //glfwSetFramebufferSizeCallback(m_Window, framebufferResizeCallback);
-        SetVSync(true);
+        setVSync(true);
 
         // Set GLFW callbacks
-        glfwSetWindowSizeCallback(m_Window, [](GLFWwindow* window, int width, int height)
+        glfwSetWindowSizeCallback(m_window, [](GLFWwindow* window, int width, int height)
         {
             WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
-            data.Width = width;
-            data.Height = height;
+            data.width = width;
+            data.height = height;
 
             WindowResizeEvent event(width, height);
-            data.EventCallback(event);
+            data.eventCallback(event);
         });
 
-        glfwSetWindowCloseCallback(m_Window, [](GLFWwindow* window)
+        glfwSetWindowCloseCallback(m_window, [](GLFWwindow* window)
         {
             WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
-            data.IsRun = false;
+            data.isRun = false;
             WindowCloseEvent event;
-            data.EventCallback(event);
+            data.eventCallback(event);
         });
 
-        glfwSetKeyCallback(m_Window, [](GLFWwindow* window, int key, int scancode, int action, int mods)
+        glfwSetKeyCallback(m_window, [](GLFWwindow* window, int key, int scancode, int action, int mods)
         {
             WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
 
@@ -79,19 +78,19 @@ namespace VT
                 case GLFW_PRESS:
                 {
                     KeyPressedEvent event(key, 0);
-                    data.EventCallback(event);
+                    data.eventCallback(event);
                     break;
                 }
                 case GLFW_RELEASE:
                 {
                     KeyReleasedEvent event(key);
-                    data.EventCallback(event);
+                    data.eventCallback(event);
                     break;
                 }
                 case GLFW_REPEAT:
                 {
                     KeyPressedEvent event(key, true);
-                    data.EventCallback(event);
+                    data.eventCallback(event);
                     break;
                 }
                 default:
@@ -99,15 +98,15 @@ namespace VT
             }
         });
 
-        glfwSetCharCallback(m_Window, [](GLFWwindow* window, unsigned int keycode)
+        glfwSetCharCallback(m_window, [](GLFWwindow* window, unsigned int keycode)
         {
             WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
 
             KeyTypedEvent event(keycode);
-            data.EventCallback(event);
+            data.eventCallback(event);
         });
 
-        glfwSetMouseButtonCallback(m_Window, [](GLFWwindow* window, int button, int action, int mods)
+        glfwSetMouseButtonCallback(m_window, [](GLFWwindow* window, int button, int action, int mods)
         {
             WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
 
@@ -116,13 +115,13 @@ namespace VT
                 case GLFW_PRESS:
                 {
                     MouseButtonPressedEvent event(button);
-                    data.EventCallback(event);
+                    data.eventCallback(event);
                     break;
                 }
                 case GLFW_RELEASE:
                 {
                     MouseButtonReleasedEvent event(button);
-                    data.EventCallback(event);
+                    data.eventCallback(event);
                     break;
                 }
                 default:
@@ -130,26 +129,26 @@ namespace VT
             }
         });
 
-        glfwSetScrollCallback(m_Window, [](GLFWwindow* window, double xOffset, double yOffset)
+        glfwSetScrollCallback(m_window, [](GLFWwindow* window, double xOffset, double yOffset)
         {
             WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
 
             MouseScrolledEvent event((float)xOffset, (float)yOffset);
-            data.EventCallback(event);
+            data.eventCallback(event);
         });
 
-        glfwSetCursorPosCallback(m_Window, [](GLFWwindow* window, double xPos, double yPos)
+        glfwSetCursorPosCallback(m_window, [](GLFWwindow* window, double xPos, double yPos)
         {
             WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
 
             MouseMovedEvent event((float)xPos, (float)yPos);
-            data.EventCallback(event);
+            data.eventCallback(event);
         });
     }
 
-    void WindowsWindow::Shutdown()
+    void WindowsWindow::shutdown()
     {
-        glfwDestroyWindow(m_Window);
+        glfwDestroyWindow(m_window);
         --s_GLFWWindowCount;
 
         if (s_GLFWWindowCount == 0)
@@ -159,24 +158,24 @@ namespace VT
         }
     }
 
-    void WindowsWindow::OnUpdate()
+    void WindowsWindow::tick()
     {
         glfwPollEvents();
     }
 
-    void WindowsWindow::SetVSync(bool enabled)
+    void WindowsWindow::setVSync(bool enabled)
     {
         if (enabled)
             glfwSwapInterval(1);
         else
             glfwSwapInterval(0);
 
-        m_Data.VSync = enabled;
+        m_windowData.vsync = enabled;
     }
 
-    bool WindowsWindow::IsVSync() const
+    bool WindowsWindow::isVSync() const
     {
-        return m_Data.VSync;
+        return m_windowData.vsync;
     }
 }
 

@@ -34,12 +34,6 @@ namespace VT
             case VertexComponent::Tangent:
                 return VkVertexInputAttributeDescription{ .location = location, .binding = binding,
                         .format = VK_FORMAT_R32G32B32A32_SFLOAT, .offset = static_cast<uint32_t>(offsetof(StaticMeshVertex, tangent)) };
-            case VertexComponent::Joint0:
-                return VkVertexInputAttributeDescription{ .location = location, .binding = binding,
-                        .format = VK_FORMAT_R32G32B32A32_SFLOAT, .offset = static_cast<uint32_t>(offsetof(StaticMeshVertex, joint0)) };
-            case VertexComponent::Weight0:
-                return VkVertexInputAttributeDescription{ .location = location, .binding = binding,
-                        .format = VK_FORMAT_R32G32B32A32_SFLOAT, .offset = static_cast<uint32_t>(offsetof(StaticMeshVertex, weight0)) };
             default:
                 return VkVertexInputAttributeDescription{};
         }

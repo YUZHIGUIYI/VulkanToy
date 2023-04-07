@@ -29,18 +29,36 @@ namespace VT
         setupUniformBuffers();
         setupDescriptors();
         setupPipelines();
+
+        VulkanRHI::get()->onAfterSwapChainRebuild.subscribe([](){
+            RendererHandle::Get()->rebuildDepthAndFramebuffers();
+        });
     }
 
     void Renderer::release()
     {
         m_uniformBuffer->release();
         m_uniformBuffer.reset();
-        m_depthStencil.release();
+        // Depth stencil
+        if (m_depthStencil.image != VK_NULL_HANDLE)
+        {
+            vkDestroyImage(VulkanRHI::Device, m_depthStencil.image, nullptr);
+        }
+        if (m_depthStencil.imageView != VK_NULL_HANDLE)
+        {
+            vkDestroyImageView(VulkanRHI::Device, m_depthStencil.imageView, nullptr);
+        }
+        if (m_depthStencil.memory != VK_NULL_HANDLE)
+        {
+            vkFreeMemory(VulkanRHI::Device, m_depthStencil.memory, nullptr);
+        }
+
         for (auto& frameBuffer : m_frameBuffers)
         {
             vkDestroyFramebuffer(VulkanRHI::Device, frameBuffer, nullptr);
         }
-        vkFreeDescriptorSets(VulkanRHI::Device, VulkanRHI::get()->getDescriptorPoolCache().getPool(), 1, &m_descriptorSet);
+        vkFreeDescriptorSets(VulkanRHI::Device, VulkanRHI::get()->getDescriptorPoolCache().getPool(),
+                                static_cast<uint32_t>(m_descriptorSets.size()), m_descriptorSets.data());
         vkDestroyPipelineLayout(VulkanRHI::Device, m_pipelineLayout, nullptr);
         vkDestroyPipeline(VulkanRHI::Device, m_pipeline, nullptr);
     }
@@ -51,6 +69,8 @@ namespace VT
 
         // VulkanRHI - acquire next image
         uint32_t imageIndex = VulkanRHI::get()->acquireNextPresentImage();
+
+        updateUniformBuffers();
 
         // Record
         VkCommandBufferBeginInfo cmdBufInfo = Initializers::initCommandBufferBeginInfo();
@@ -85,7 +105,7 @@ namespace VT
 
         // Static mesh component
         vkCmdBindDescriptorSets(currentCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1,
-                                &m_descriptorSet, 0,nullptr);
+                                &m_descriptorSets[imageIndex], 0,nullptr);
         vkCmdBindPipeline(currentCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
 
         // Scene
@@ -99,8 +119,48 @@ namespace VT
 
         RHICheck(vkEndCommandBuffer(currentCmd));
 
+        // Vulkan submit info
+        VkPipelineStageFlags waitFlags = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+        auto frameStartSemaphore = VulkanRHI::get()->getCurrentFrameWaitSemaphore();
+        auto frameEndSemaphore = VulkanRHI::get()->getCurrentFrameFinishSemaphore();
+        VulkanSubmitInfo graphicsCmdSubmitInfo{};
+        graphicsCmdSubmitInfo.setWaitStage(&waitFlags)
+                            .setWaitSemaphore(&frameStartSemaphore, 1)
+                            .setSignalSemaphore(&frameEndSemaphore, 1)
+                            .setCommandBuffer(&currentCmd, 1);
+
+        // Reset fence
+        VulkanRHI::get()->resetFence();
+
+        // Submit command buffer
+        VulkanRHI::get()->submit(1, &graphicsCmdSubmitInfo.getSubmitInfo());
+
         // Present
         VulkanRHI::get()->present();
+    }
+
+    void Renderer::rebuildDepthAndFramebuffers()
+    {
+        if (m_depthStencil.image != VK_NULL_HANDLE)
+        {
+            vkDestroyImage(VulkanRHI::Device, m_depthStencil.image, nullptr);
+        }
+        if (m_depthStencil.imageView != VK_NULL_HANDLE)
+        {
+            vkDestroyImageView(VulkanRHI::Device, m_depthStencil.imageView, nullptr);
+        }
+        if (m_depthStencil.memory != VK_NULL_HANDLE)
+        {
+            vkFreeMemory(VulkanRHI::Device, m_depthStencil.memory, nullptr);
+        }
+        for (auto framebuffer : m_frameBuffers)
+        {
+            vkDestroyFramebuffer(VulkanRHI::Device, framebuffer, nullptr);
+        }
+        m_depthStencil = {};
+
+        setupDepthStencil();
+        setupFrameBuffers();
     }
 
     void Renderer::createSynchronizationPrimitives()
@@ -123,21 +183,21 @@ namespace VT
         imageCI.tiling = VK_IMAGE_TILING_OPTIMAL;
         imageCI.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
-        RHICheck(vkCreateImage(VulkanRHI::Device, &imageCI, nullptr, &m_depthStencil.m_image));
+        RHICheck(vkCreateImage(VulkanRHI::Device, &imageCI, nullptr, &m_depthStencil.image));
         VkMemoryRequirements memReqs{};
-        vkGetImageMemoryRequirements(VulkanRHI::Device, m_depthStencil.m_image, &memReqs);
+        vkGetImageMemoryRequirements(VulkanRHI::Device, m_depthStencil.image, &memReqs);
 
         VkMemoryAllocateInfo memAlloc{};
         memAlloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         memAlloc.allocationSize = memReqs.size;
         memAlloc.memoryTypeIndex = VulkanRHI::get()->findMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        RHICheck(vkAllocateMemory(VulkanRHI::Device, &memAlloc, nullptr, &m_depthStencil.m_memory));
-        RHICheck(vkBindImageMemory(VulkanRHI::Device, m_depthStencil.m_image, m_depthStencil.m_memory, 0));
+        RHICheck(vkAllocateMemory(VulkanRHI::Device, &memAlloc, nullptr, &m_depthStencil.memory));
+        RHICheck(vkBindImageMemory(VulkanRHI::Device, m_depthStencil.image, m_depthStencil.memory, 0));
 
         VkImageViewCreateInfo imageViewCI{};
         imageViewCI.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         imageViewCI.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        imageViewCI.image = m_depthStencil.m_image;
+        imageViewCI.image = m_depthStencil.image;
         imageViewCI.format = VulkanRHI::get()->getSupportDepthStencilFormat();
         imageViewCI.subresourceRange.baseMipLevel = 0;
         imageViewCI.subresourceRange.levelCount = 1;
@@ -149,7 +209,7 @@ namespace VT
         {
             imageViewCI.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
         }
-        vkCreateImageView(VulkanRHI::Device, &imageViewCI, nullptr, &m_depthStencil.m_imageView);
+        vkCreateImageView(VulkanRHI::Device, &imageViewCI, nullptr, &m_depthStencil.imageView);
     }
 
     // TODO: separate
@@ -226,18 +286,12 @@ namespace VT
 
     void Renderer::setupFrameBuffers()
     {
-        VkImageView attachments[2]{};
-
         // Depth/Stencil attachment is the same for all frame buffers
         // Color attachment is different
-        attachments[1] = m_depthStencil.m_imageView;
-
         VkFramebufferCreateInfo framebufferCreateInfo{};
         framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         framebufferCreateInfo.pNext = nullptr;
         framebufferCreateInfo.renderPass = m_renderPass;
-        framebufferCreateInfo.attachmentCount = 2;
-        framebufferCreateInfo.pAttachments = attachments;
         auto extent = VulkanRHI::get()->getSwapChainExtent();
         framebufferCreateInfo.width = extent.width;
         framebufferCreateInfo.height = extent.height;
@@ -247,7 +301,9 @@ namespace VT
         m_frameBuffers.resize(VulkanRHI::get()->getSwapChain().imageCount);
         for (uint32_t i = 0; i < m_frameBuffers.size(); ++i)
         {
-            attachments[0] = VulkanRHI::get()->getSwapChain().swapChainImageViews[i];
+            std::vector<VkImageView> attachments{ VulkanRHI::get()->getSwapChain().swapChainImageViews[i], m_depthStencil.imageView };
+            framebufferCreateInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+            framebufferCreateInfo.pAttachments = attachments.data();
             RHICheck(vkCreateFramebuffer(VulkanRHI::Device, &framebufferCreateInfo, nullptr, &m_frameBuffers[i]));
         }
     }
@@ -272,10 +328,16 @@ namespace VT
     void Renderer::setupDescriptors()
     {
         // Have completed in VulkanDescriptor.cpp file
-        bool result = VulkanRHI::get()->descriptorFactoryBegin().bindBuffers(
-                0, 1, &m_uniformBuffer->m_bufferInfo, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
-                .build(m_descriptorSet, m_descriptorSetLayout);
-        VT_CORE_ASSERT(result, "Fail to set up vulkan descriptor set");
+        auto size = VulkanRHI::get()->getSwapChainImages().size();
+        m_descriptorSets.resize(size);
+        for (size_t i = 0; i < size; ++i)
+        {
+            bool result = VulkanRHI::get()->descriptorFactoryBegin().bindBuffers(
+                            0, 1, &m_uniformBuffer->getDescriptorBufferInfo(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
+                    .build(m_descriptorSets[i], m_descriptorSetLayout);
+            VT_CORE_ASSERT(result, "Fail to set up vulkan descriptor set");
+        }
+
     }
 
     void Renderer::setupPipelines()
@@ -310,7 +372,7 @@ namespace VT
 
         std::vector<VkPushConstantRange> pushConstantRanges{
             Initializers::initPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), 0),
-            Initializers::initPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(int32_t), sizeof(glm::mat4))
+            Initializers::initPushConstantRange(VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(int32_t), sizeof(glm::mat4))
         };
         pipelineLayoutCreateInfo.pushConstantRangeCount = pushConstantRanges.size();
         pipelineLayoutCreateInfo.pPushConstantRanges = pushConstantRanges.data();
@@ -342,11 +404,11 @@ namespace VT
 
     void Renderer::updateUniformBuffers()
     {
-        // Update uniform buffers
-        m_cameraParas.projection = SceneCameraHandle::Get()->GetProjection();
-        m_cameraParas.view = SceneCameraHandle::Get()->GetViewMatrix();
-        m_cameraParas.position = SceneCameraHandle::Get()->GetPosition();
-        std::memcpy(m_uniformBuffer->m_mapped, &m_cameraParas, sizeof(m_cameraParas));
+        m_cameraParas.projection = SceneCameraHandle::Get()->getProjection();
+        m_cameraParas.view = SceneCameraHandle::Get()->getViewMatrix();
+        m_cameraParas.position = SceneCameraHandle::Get()->getPosition();
+
+        m_uniformBuffer->copyData(&m_cameraParas, sizeof(CameraParameters));
     }
 }
 

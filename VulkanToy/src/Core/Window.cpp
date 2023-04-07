@@ -2,8 +2,8 @@
 // Created by ZZK on 2023/3/1.
 //
 
-#include <VulkanToy/Core/Window.h>
-#include <Platform/Windows/WindowsWindow.h>
+#include <VulkanToy/Windows/Window.h>
+#include <VulkanToy/Windows/WindowsWindow.h>
 
 namespace VT
 {

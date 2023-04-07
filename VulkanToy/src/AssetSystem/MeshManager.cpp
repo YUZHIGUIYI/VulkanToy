@@ -35,6 +35,35 @@ namespace VT
         return 0;
     }
 
+    // Separate
+    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
+                        VkBuffer &buffer, VkDeviceMemory &bufferMemory)
+    {
+        VkBufferCreateInfo bufferInfo{};
+        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferInfo.size = size;
+        bufferInfo.usage = usage;
+        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        if (vkCreateBuffer(VulkanRHI::Device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
+            throw std::runtime_error("Failed to create buffer!");
+
+        VkMemoryRequirements memRequirements;
+        vkGetBufferMemoryRequirements(VulkanRHI::Device, buffer, &memRequirements);
+
+        VkMemoryAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.allocationSize = memRequirements.size;
+        allocInfo.memoryTypeIndex = VulkanRHI::get()->findMemoryType(memRequirements.memoryTypeBits, properties);
+
+        if (vkAllocateMemory(VulkanRHI::Device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
+        {
+            VT_CORE_CRITICAL("Fail to allocate buffer memory");
+        }
+
+        vkBindBufferMemory(VulkanRHI::Device, buffer, bufferMemory, 0);
+    }
+
     // Immediately build GPU mesh asset
     GPUMeshAsset::GPUMeshAsset(GPUMeshAsset *fallback, bool isPersistent, const std::string &name,
         VkDeviceSize vertexSize, size_t singleVertexSize, VkDeviceSize indexSize,
@@ -44,7 +73,7 @@ namespace VT
         VT_CORE_ASSERT(m_vertexBuffer == nullptr, "Ensure that GPU mesh asset initialized only once");
         VT_CORE_ASSERT(m_indexBuffer == nullptr, "Ensure that GPU mesh asset initialized only once");
 
-        auto bufferFlagBasic = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        auto bufferFlagBasic = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         VmaAllocationCreateFlags vmaBufferFlags{};
 
         m_vertexBuffer = VulkanBuffer::create2(
@@ -104,7 +133,7 @@ namespace VT
     {
         // TODO: separate
         VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = *m_vertexBuffer;
+        bufferInfo.buffer = m_vertexBuffer->getBuffer();
         bufferInfo.offset = 0;
         bufferInfo.range  = m_vertexBuffer->getMemorySize();    // TODO: fix
         VkWriteDescriptorSet write{};
@@ -121,7 +150,7 @@ namespace VT
 
         // TODO: separate
         VkDescriptorBufferInfo bufferInfo2{};
-        bufferInfo2.buffer = *m_indexBuffer;
+        bufferInfo2.buffer = m_indexBuffer->getBuffer();
         bufferInfo2.offset = 0;
         bufferInfo2.range  = m_indexBuffer->getMemorySize();
         VkWriteDescriptorSet write2{};
@@ -169,7 +198,7 @@ namespace VT
             regionIndex.size = VkDeviceSize(cacheIndexData.size());
             regionIndex.srcOffset = indexOffsetInSrcBuffer;
             regionIndex.dstOffset = 0;
-            vkCmdCopyBuffer(commandBuffer.cmd, stageBuffer, meshAssetGPU->getIndexBuffer(), 1, &regionIndex);
+            vkCmdCopyBuffer(commandBuffer.cmd, stageBuffer.getBuffer(), meshAssetGPU->getIndexBuffer(), 1, &regionIndex);
         }
 
         {
@@ -177,7 +206,7 @@ namespace VT
             regionVertex.size = VkDeviceSize(cacheVertexData.size());
             regionVertex.srcOffset = vertexOffsetInSrcBuffer;
             regionVertex.dstOffset = 0;
-            vkCmdCopyBuffer(commandBuffer.cmd, stageBuffer, meshAssetGPU->getVertexBuffer(), 1, &regionVertex);
+            vkCmdCopyBuffer(commandBuffer.cmd, stageBuffer.getBuffer(), meshAssetGPU->getVertexBuffer(), 1, &regionVertex);
         }
 
         // TODO: check
@@ -255,6 +284,30 @@ namespace VT
         std::memcpy((void *)(newTask->cacheVertexData.data()), (void *)processor.m_vertices.data(), newTask->cacheVertexData.size());
         std::memcpy((void *)(newTask->cacheIndexData.data()), (void *)processor.m_indices.data(), newTask->cacheIndexData.size());
 
+        // TODO: separate
+        // Staging buffer vertex
+        VkDeviceSize vertexBufferSize = sizeof(StaticMeshVertex) * processor.m_vertices.size();
+        VkBuffer stagingVertexBuffer;
+        VkDeviceMemory stagingVertexBufferMemory;
+        createBuffer(vertexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                        stagingVertexBuffer, stagingVertexBufferMemory);
+        // Staging buffer index
+        VkDeviceSize indexBufferSize = sizeof(VertexIndexType) * processor.m_indices.size();
+        VkBuffer stagingIndexBuffer;
+        VkDeviceMemory stagingIndexBufferMemory;
+        createBuffer(indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                        stagingIndexBuffer, stagingIndexBufferMemory);
+
+        void* vertexData;
+        vkMapMemory(VulkanRHI::Device, stagingVertexBufferMemory, 0, vertexBufferSize, 0, &vertexData);
+        std::memcpy(vertexData, processor.m_vertices.data(), (size_t)vertexBufferSize);
+        vkUnmapMemory(VulkanRHI::Device, stagingVertexBufferMemory);
+
+        void* indexData;
+        vkMapMemory(VulkanRHI::Device, stagingIndexBufferMemory, 0, indexBufferSize, 0, &indexData);
+        std::memcpy(indexData, processor.m_indices.data(), (size_t)indexBufferSize);
+        vkUnmapMemory(VulkanRHI::Device, stagingIndexBufferMemory);
+
         // TODO: check
         GPUMeshAsset* fallback = nullptr;
         VT_CORE_ASSERT(sizeof(VertexIndexType) == 4, "Currently VertexIndexType must be uint32_t");
@@ -268,6 +321,42 @@ namespace VT
                 VK_INDEX_TYPE_UINT32);
 
         newAsset->setTexturePaths(processor.m_texturePathMap);
+
+        // TODO: separate
+        {
+            VkCommandBuffer commandBuffer = VulkanRHI::get()->createMajorGraphicsCommandBuffer();
+            VkCommandBufferBeginInfo beginInfo{};
+            beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+            beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+            vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+            // Vertex and index
+            VkBufferCopy  copyRegionVertex{};
+            copyRegionVertex.size = vertexBufferSize;
+            vkCmdCopyBuffer(commandBuffer, stagingVertexBuffer, newAsset->getVertexBuffer(), 1, &copyRegionVertex);
+
+            VkBufferCopy copyRegionIndex{};
+            copyRegionIndex.size = indexBufferSize;
+            vkCmdCopyBuffer(commandBuffer, stagingIndexBuffer, newAsset->getIndexBuffer(), 1, &copyRegionIndex);
+
+            vkEndCommandBuffer(commandBuffer);
+            VkSubmitInfo submitInfo{};
+            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+            submitInfo.commandBufferCount = 1;
+            submitInfo.pCommandBuffers = &commandBuffer;
+
+            vkQueueSubmit(VulkanRHI::get()->getMajorGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+            vkQueueWaitIdle(VulkanRHI::get()->getMajorGraphicsQueue());
+
+            vkFreeCommandBuffers(VulkanRHI::Device, VulkanRHI::get()->getMajorGraphicsCommandPool(), 1, &commandBuffer);
+        }
+
+        {
+            vkDestroyBuffer(VulkanRHI::Device, stagingVertexBuffer, nullptr);
+            vkFreeMemory(VulkanRHI::Device, stagingVertexBufferMemory, nullptr);
+            vkDestroyBuffer(VulkanRHI::Device, stagingIndexBuffer, nullptr);
+            vkFreeMemory(VulkanRHI::Device, stagingIndexBufferMemory, nullptr);
+        }
 
         MeshManager::Get()->insertGPUAsset(uuid, newAsset);
         newTask->meshAssetGPU = newAsset;

@@ -13,17 +13,17 @@ namespace VT
     class Layer
     {
     public:
-        Layer(const std::string& name = "Layer");
+        Layer(const std::string& name = "Layer") : m_debugName(name) {}
         virtual ~Layer() = default;
 
-        virtual void OnAttach() {}
-        virtual void OnDetach() {}
-        virtual void OnUpdate(const RuntimeModuleTickData &tickData) {}
-        virtual void OnImGuiRender() {}
-        virtual void OnEvent(Event& event) {}
+        virtual void onAttach() {}
+        virtual void onDetach() {}
+        virtual void tick(const RuntimeModuleTickData &tickData) {}
+        virtual void onImGuiRender() {}
+        virtual void onEvent(Event& event) {}
 
-        inline const std::string& GetName() const { return m_DebugName; }
+        [[nodiscard]] const std::string& getName() const { return m_debugName; }
     protected:
-        std::string m_DebugName;
+        std::string m_debugName;
     };
 }

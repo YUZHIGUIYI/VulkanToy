@@ -55,8 +55,6 @@ namespace VT
         Ref<VulkanBuffer> m_indexBuffer = nullptr;
         VkIndexType m_indexType = VK_INDEX_TYPE_UINT32;
 
-        // TODO: Accelerate structure
-
         std::string m_name{};
 
         uint32_t m_singleIndexSize = 0;
@@ -92,11 +90,11 @@ namespace VT
 
         void finishUpload();
 
-        auto& getVertexBuffer() { return *m_vertexBuffer; }
+        auto& getVertexBuffer() { return m_vertexBuffer->getBuffer(); }
 
         VulkanBuffer* getVertexBufferRaw() { return m_vertexBuffer.get(); }
 
-        auto& getIndexBuffer() { return *m_indexBuffer; }
+        auto& getIndexBuffer() { return m_indexBuffer->getBuffer(); }
 
         VulkanBuffer* getIndexBufferRaw() { return m_indexBuffer.get(); }
 

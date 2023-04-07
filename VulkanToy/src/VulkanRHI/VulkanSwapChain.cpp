@@ -9,40 +9,15 @@ namespace VT
 {
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats)
     {
-        switch (VulkanRHI::eDisplayMode)
+        for (const auto& availableFormat : availableFormats)
         {
-            case VulkanRHI::DisplayMode::DISPLAYMODE_HDR:
+            if (availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR && availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB)
             {
-                for (const auto& availableFormat : availableFormats)
-                {
-                    if (availableFormat.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT)
-                    {
-                        if (availableFormat.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
-                        {
-                            return availableFormat;
-                        }
-                    }
-                }
-                break;
+                return availableFormat;
             }
-            case VulkanRHI::DisplayMode::DISPLAYMODE_SDR:
-            {
-                for (const auto& availableFormat : availableFormats)
-                {
-                    if (availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-                    {
-                        if (availableFormat.format == VK_FORMAT_B8G8R8A8_UNORM)
-                        {
-                            return availableFormat;
-                        }
-                    }
-                }
-                break;
-            }
-            default:
-                break;
         }
-        VT_CORE_WARN("Currently using non-srgb unorm format back format back buffer, may cause some problem");
+
+        VT_CORE_WARN("Currently using non-srgb format back format back buffer, may cause some problem");
         return availableFormats[0];
     }
 
@@ -139,13 +114,14 @@ namespace VT
         {
             VkImageViewCreateInfo viewCreateInfo{};
             viewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            viewCreateInfo.pNext = nullptr;
             viewCreateInfo.image = swapChainImages[i];
             viewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
             viewCreateInfo.format = colorFormat;
-            viewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-            viewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-            viewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-            viewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+            viewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_R;
+            viewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_G;
+            viewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_B;
+            viewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_A;
             viewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             viewCreateInfo.subresourceRange.baseMipLevel = 0;
             viewCreateInfo.subresourceRange.levelCount = 1;

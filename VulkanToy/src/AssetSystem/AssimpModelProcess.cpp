@@ -37,7 +37,7 @@ namespace VT
 
         for (uint32_t i = 0; i < mesh->mNumVertices; ++i)
         {
-            StaticMeshVertex vertex;
+            StaticMeshVertex vertex{};
 
             vertex.position.x = mesh->mVertices[i].x;
             vertex.position.y = mesh->mVertices[i].y;

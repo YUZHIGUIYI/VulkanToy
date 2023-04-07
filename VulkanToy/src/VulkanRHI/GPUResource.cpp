@@ -80,7 +80,7 @@ namespace VT
         }
 
         // Initialize a default descriptor that covers the whole buffer size
-        setupDescriptor();
+        setupDescriptorBufferInfo();
 
         VulkanRHI::setResourceName(VK_OBJECT_TYPE_BUFFER, (uint64_t)m_buffer, m_name.c_str());
         VulkanRHI::addGPUResourceMemoryUsed(m_size);
@@ -128,13 +128,12 @@ namespace VT
         {
             result = vkMapMemory(VulkanRHI::Device, m_memory, offset, size, 0, &m_mapped);
         }
-        //VT_CORE_ASSERT(m_mapped != nullptr, "Fail to map buffer memory");
         return result;
     }
 
-    void VulkanBuffer::copyTo(const void *data, VkDeviceSize size)
+    void VulkanBuffer::copyData(const void *data, size_t size)
     {
-        VT_CORE_ASSERT(m_mapped != nullptr, "Must map buffer before copying");
+        VT_CORE_ASSERT(m_mapped != nullptr, "Must map buffer before copying data");
         std::memcpy(m_mapped, data, size);
     }
 
@@ -153,11 +152,20 @@ namespace VT
         }
     }
 
-    void VulkanBuffer::setupDescriptor(VkDeviceSize size, VkDeviceSize offset)
+    void VulkanBuffer::setupDescriptorBufferInfo(VkDeviceSize size, VkDeviceSize offset)
     {
         m_bufferInfo.offset = offset;
         m_bufferInfo.buffer = m_buffer;
         m_bufferInfo.range = size;
+    }
+
+    VkDescriptorBufferInfo& VulkanBuffer::getDescriptorBufferInfo()
+    {
+        if (m_buffer != VK_NULL_HANDLE && m_bufferInfo.buffer == VK_NULL_HANDLE)
+        {
+            setupDescriptorBufferInfo(m_size, 0);
+        }
+        return m_bufferInfo;
     }
 
     VkResult VulkanBuffer::bind(VkDeviceSize offset)
@@ -207,14 +215,14 @@ namespace VT
         return result;
     }
 
-    void VulkanBuffer::stageCopyFrom(VkBuffer inBuffer, VkDeviceSize size, VkDeviceSize srcOffset, VkDeviceSize dstOffset)
+    void VulkanBuffer::copyFromStagingBuffer(VkBuffer srcBuffer, VkDeviceSize size, VkDeviceSize srcOffset, VkDeviceSize dstOffset)
     {
-        VulkanRHI::executeImmediatelyMajorGraphics([this, &inBuffer, size, srcOffset, dstOffset](VkCommandBuffer cmb){
+        VulkanRHI::executeImmediatelyMajorGraphics([this, srcBuffer, size, srcOffset, dstOffset](VkCommandBuffer cmb){
             VkBufferCopy copyRegion{};
             copyRegion.srcOffset = srcOffset;
             copyRegion.dstOffset = dstOffset;
             copyRegion.size = size;
-            vkCmdCopyBuffer(cmb, inBuffer, m_buffer, 1, &copyRegion);
+            vkCmdCopyBuffer(cmb, srcBuffer, m_buffer, 1, &copyRegion);
         });
     }
 
@@ -334,9 +342,15 @@ namespace VT
 
         for (auto& pair : m_cacheImageViews)
         {
-            VT_CORE_ASSERT(pair.second != VK_NULL_HANDLE);
-            vkDestroyImageView(VulkanRHI::Device, pair.second, nullptr);
+            if (pair.second != VK_NULL_HANDLE)
+                vkDestroyImageView(VulkanRHI::Device, pair.second, nullptr);
         }
+
+        if (m_imageView != VK_NULL_HANDLE)
+        {
+            vkDestroyImageView(VulkanRHI::Device, m_imageView, nullptr);
+        }
+
         m_cacheImageViews.clear();
         VulkanRHI::minusGPUResourceMemoryUsed(m_size);
         VT_CORE_INFO("Image {0} has been released", m_name);

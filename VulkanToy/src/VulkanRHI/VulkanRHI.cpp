@@ -206,6 +206,8 @@ namespace VT
 
     void VulkanContext::initInstance(const std::vector<const char *> &requiredExtensions, const std::vector<const char *> &requiredLayers)
     {
+        bool isUtilDebug = false;
+
         std::vector<const char *> enableExtensions{};
 
         // Query all useful instance extensions
@@ -222,6 +224,11 @@ namespace VT
                 VT_CORE_INFO("Extension '{0}' is enabled", VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
                 enableExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
             }
+        }
+        if (!isUtilDebug)
+        {
+            // When debug util unused, open debug report extension
+            enableExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
         }
 
         // Surface extensions
@@ -286,6 +293,7 @@ namespace VT
         // Vulkan info
         VkApplicationInfo appInfo{};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+        appInfo.pApplicationName = "VulkanRHI";
         appInfo.applicationVersion = 0;
         appInfo.pEngineName = "VulkanToy";
         appInfo.engineVersion = 0;
@@ -294,6 +302,7 @@ namespace VT
         // Instance info
         VkInstanceCreateInfo instanceCreateInfo{};
         instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+        instanceCreateInfo.pApplicationInfo = &appInfo;
         instanceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(enableExtensions.size());
         instanceCreateInfo.ppEnabledExtensionNames = enableExtensions.data();
         instanceCreateInfo.enabledLayerCount = static_cast<uint32_t>(requestedInstanceLayers.size());
@@ -563,6 +572,7 @@ namespace VT
         m_presentContext.imagesInFlight.resize(m_swapChain.swapChainImageViews.size(), VK_NULL_HANDLE);
 
         // TODO: after recreate broadcast
+        onAfterSwapChainRebuild.broadcast();
     }
 
     SwapChainSupportDetails VulkanContext::querySwapChainSupportDetail()

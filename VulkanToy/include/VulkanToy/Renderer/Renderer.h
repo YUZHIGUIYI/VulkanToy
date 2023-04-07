@@ -12,20 +12,26 @@ namespace VT
 {
     struct CameraParameters
     {
-        glm::mat4 projection{};
-        glm::mat4 view{};
-        glm::vec3 position{};
+        alignas(16) glm::mat4 projection{};
+        alignas(16) glm::mat4 view{};
+        alignas(16) glm::vec3 position{};
     };
 
     class Renderer
     {
     private:
-        VulkanImage m_depthStencil;
+        struct DepthStencil
+        {
+            VkImage image = VK_NULL_HANDLE;
+            VkImageView imageView = VK_NULL_HANDLE;
+            VkDeviceMemory memory = VK_NULL_HANDLE;
+        } m_depthStencil;
+
         VkRenderPass m_renderPass = VK_NULL_HANDLE;
         std::vector<VkFramebuffer> m_frameBuffers;
         Ref<VulkanBuffer> m_uniformBuffer;
         // Currently use one descriptor set for camera uniform buffer
-        VkDescriptorSet m_descriptorSet = VK_NULL_HANDLE;
+        std::vector<VkDescriptorSet> m_descriptorSets;
         VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
 
         VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
@@ -41,6 +47,8 @@ namespace VT
         void release();
 
         void tick(const RuntimeModuleTickData &tickData);
+
+        void rebuildDepthAndFramebuffers();
 
     private:
         void createSynchronizationPrimitives();

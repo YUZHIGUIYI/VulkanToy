@@ -11,27 +11,28 @@ namespace VT
 {
     struct VulkanBuffer
     {
+    private:
         std::string m_name{};
         VkBuffer m_buffer = VK_NULL_HANDLE;
         VmaAllocation m_allocation = nullptr;
         VkDeviceMemory m_memory = VK_NULL_HANDLE;
         VkDeviceSize m_size = 0;
+        void *m_mapped = nullptr;
+
         uint64_t m_deviceAddress = 0;
-        void *m_mapped = nullptr;     // Mapped pointer for buffer
-        bool m_isHeap = false;
 
         VkDescriptorBufferInfo m_bufferInfo{};
 
-        operator VkBuffer() const { return m_buffer; }
-        operator VkDeviceMemory() const { return m_memory; }
-        VkBuffer getVkBuffer() const { return m_buffer; }
-        VkDeviceSize getMemorySize() const { return m_size; }
+        bool m_isHeap = false;
 
-        const char* getName() const { return m_name.c_str();}
+    public:
+        [[nodiscard]] const VkBuffer& getBuffer() const { return m_buffer; }
+        [[nodiscard]] VkDeviceMemory getMemory() const { return m_memory; }
+        [[nodiscard]] VkDeviceSize getMemorySize() const { return m_size; }
+        [[nodiscard]] bool isHeap() const { return m_isHeap; }
+        [[nodiscard]] const char* getName() const { return m_name.c_str();}
 
         void setName(const std::string &newName);
-
-        bool isHeap() const { return m_isHeap; }
 
         bool innerCreate(VkBufferUsageFlags usageFlags,
             VkMemoryPropertyFlags memoryPropertyFlags,
@@ -42,15 +43,17 @@ namespace VT
 
         uint64_t getDeviceAddress();
         VkResult map(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
-        void copyTo(const void *data, VkDeviceSize size);
+        void copyData(const void *data, size_t size);
         void unmap();
 
-        void setupDescriptor(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
+        void setupDescriptorBufferInfo(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
+        VkDescriptorBufferInfo& getDescriptorBufferInfo();
 
         VkResult bind(VkDeviceSize offset = 0);
+
         VkResult flush(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
         VkResult invalidate(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
-        void stageCopyFrom(VkBuffer inBuffer, VkDeviceSize size, VkDeviceSize srcOffset = 0, VkDeviceSize dstOffset = 0);
+        void copyFromStagingBuffer(VkBuffer srcBuffer, VkDeviceSize size, VkDeviceSize srcOffset = 0, VkDeviceSize dstOffset = 0);
 
         static Ref<VulkanBuffer> create(const char *name,
             VkBufferUsageFlags usageFlags,
@@ -58,12 +61,14 @@ namespace VT
             VMAUsageFlags vmaFlags,
             VkDeviceSize size,
             void *data = nullptr);  // Copy data
+
         static Ref<VulkanBuffer> create2(const char *name,
             VkBufferUsageFlags usageFlags,
             VkMemoryPropertyFlags memoryPropertyFlags,
             VmaAllocationCreateFlags vmaFlags,
             VkDeviceSize size,
             void *data = nullptr);  // Copy data
+
         static Ref<VulkanBuffer> createRTScratchBuffer(const char *name, VkDeviceSize size);
     };
 

@@ -150,7 +150,7 @@ namespace VT
             queueIndex++;
         }
         VT_CORE_ASSERT(graphicsQueueCount > 2, "Need more than one queue to do some async dispatch");
-        VT_CORE_ASSERT(copyQueueCount > 2, "Need more than one queue to do some async dispatch");
+        VT_CORE_ASSERT(copyQueueCount > 1, "Need more than one queue to do some async dispatch");
 
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
         // Prepare queue priority, all 0.5f

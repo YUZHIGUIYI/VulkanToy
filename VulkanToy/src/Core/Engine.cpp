@@ -7,6 +7,8 @@
 #include <VulkanToy/VulkanRHI/VulkanRHI.h>
 #include <VulkanToy/Renderer/Renderer.h>
 #include <VulkanToy/AssetSystem/AssetSystem.h>
+#include <VulkanToy/Scene/Scene.h>
+#include <VulkanToy/Renderer/SceneCamera.h>
 
 namespace VT
 {
@@ -21,10 +23,13 @@ namespace VT
     {
         WindowProps props{ "VulkanToy", 1600, 900 };
         m_window = Window::Create(props);
+        m_window->setEventCallback(VT_BIND_EVENT_FN(Engine::onEvent));
 
-        VulkanRHI::get()->init(static_cast<GLFWwindow *>(m_window->GetNativeWindow()));
+        VulkanRHI::get()->init(static_cast<GLFWwindow *>(m_window->getNativeWindow()));
         AssetSystemHandle::Get()->init();
         RendererHandle::Get()->init();
+        SceneHandle::Get()->init();
+        SceneCameraHandle::Get()->init();
 
         m_isInitialized = true;
     }
@@ -46,18 +51,18 @@ namespace VT
             m_lastTime = time;
             tickData.isFocus = true;
             tickData.isMinimized = false;
-            tickData.windowWidth = m_window->GetWidth();
-            tickData.windowHeight = m_window->GetHeight();
+            tickData.windowWidth = m_window->getWidth();
+            tickData.windowHeight = m_window->getHeight();
 
-            for (auto layer : m_layerStack)
+            for (auto& layer : m_layerStack)
             {
-                layer->OnUpdate(tickData);
+                layer->tick(tickData);
             }
-
+            SceneCameraHandle::Get()->tick(tickData);
             AssetSystemHandle::Get()->tick(tickData);
             RendererHandle::Get()->tick(tickData);
 
-            m_window->OnUpdate();
+            m_window->tick();
         }
 
         vkDeviceWaitIdle(VulkanRHI::Device);
@@ -68,12 +73,15 @@ namespace VT
         EventDispatcher dispatcher(event);
         dispatcher.Dispatch<WindowCloseEvent>(VT_BIND_EVENT_FN(Engine::onWindowClose));
 
-        // TODO: Handle events
+        // TODO: separate handle scene camera more
+        SceneCameraHandle::Get()->onEvent(event);
+
+        // TODO: separate handle events
         for (auto it = m_layerStack.rbegin(); it != m_layerStack.rend(); ++it)
         {
             if (event.Handled)
                 break;
-            (*it)->OnEvent(event);
+            (*it)->onEvent(event);
         }
     }
 
@@ -86,14 +94,14 @@ namespace VT
 
     void Engine::pushLayer(Layer *layer)
     {
-        m_layerStack.PushLayer(layer);
-        layer->OnAttach();
+        m_layerStack.pushLayer(layer);
+        layer->onAttach();
     }
 
     void Engine::pushOverlay(Layer *layer)
     {
-        m_layerStack.PushOverlay(layer);
-        layer->OnAttach();
+        m_layerStack.pushOverlay(layer);
+        layer->onAttach();
     }
 
 }

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <VulkanToy/Core/Window.h>
+#include <VulkanToy/Windows/Window.h>
 #include <VulkanToy/Core/LayerStack.h>
 #include <VulkanToy/Events/Event.h>
 #include <VulkanToy/Events/ApplicationEvent.h>
