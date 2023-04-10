@@ -107,68 +107,7 @@ namespace VT
             glm::vec3(aabbMax.x, aabbMax.y, aabbMax.x),
             glm::vec3(aabbCenter.x, aabbCenter.y, aabbCenter.z));
 
-        // Standard PBR texture prepare
-        aiString baseColorTextures{};
-        aiString normalTextures{};
-        aiString specularTextures{};
-        aiString aoTextures{};
-        aiString emissiveTextures{};
-
-        auto tryFetchTexture = [this](const char *pathIn, bool isSrgb, TextureType texType)
-        {
-            const auto path = (folderPath / pathIn).string();
-            if (m_texturePathMap.contains(texType))
-            {
-                // TODO
-                VT_CORE_WARN("Already exists: {0}", path);
-            } else
-            {
-                m_texturePathMap[texType] = path;
-            }
-        };
-
-        if (mesh->mMaterialIndex >= 0)
-        {
-            aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
-            static const std::string materialName = "_mat";
-
-            // TODO: Create new material
-            if (material->GetTextureCount(aiTextureType_DIFFUSE) > 0)
-            {
-                material->GetTexture(aiTextureType_DIFFUSE, 0, &baseColorTextures);
-                // TODO: get texture
-                tryFetchTexture(baseColorTextures.C_Str(), true, TextureType::DIFFUSE);
-            }
-            if (material->GetTextureCount(aiTextureType_HEIGHT) > 0)
-            {
-                material->GetTexture(aiTextureType_HEIGHT, 0, &normalTextures);
-                // TODO: get texture
-                tryFetchTexture(normalTextures.C_Str(), false, TextureType::HEIGHT);
-            }
-            if (material->GetTextureCount(aiTextureType_SPECULAR) > 0)
-            {
-                material->GetTexture(aiTextureType_SPECULAR, 0, &specularTextures);
-                // TODO: get texture
-                tryFetchTexture(specularTextures.C_Str(), false, TextureType::SPECULAR);
-            }
-            if (material->GetTextureCount(aiTextureType_AMBIENT) > 0)
-            {
-                material->GetTexture(aiTextureType_AMBIENT, 0, &aoTextures);
-                // TODO: get texture
-                tryFetchTexture(aoTextures.C_Str(), false, TextureType::AMBIENT);
-            }
-            if (material->GetTextureCount(aiTextureType_EMISSIVE) > 0)
-            {
-                material->GetTexture(aiTextureType_EMISSIVE, 0, &emissiveTextures);
-                // TODO: get texture
-                tryFetchTexture(emissiveTextures.C_Str(), true, TextureType::EMISSIVE);
-            }
-
-            // TODO:
-        } else
-        {
-            subMeshInfo.material = {};
-        }
+        subMeshInfo.material = {};
 
         return subMeshInfo;
     }

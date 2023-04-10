@@ -11,7 +11,7 @@ namespace VT
     void Scene::init()
     {
         // Just for test
-        Ref<StaticMeshComponent> sample = CreateRef<StaticMeshComponent>(EngineMeshes::GBoxUUID);
+        Ref<StaticMeshComponent> sample = CreateRef<StaticMeshComponent>(EngineMeshes::GCerberusUUID);
 
         addComponent(sample);
     }

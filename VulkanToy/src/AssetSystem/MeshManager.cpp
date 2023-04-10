@@ -11,9 +11,11 @@ namespace VT
 {
     const UUID EngineMeshes::GBoxUUID = "12a68c4e-8352-4d97-a914-a0f4f4d1fd28";
     const UUID EngineMeshes::GSphereUUID = "45f0d878-6d3f-11ed-a1eb-0242ac120002";
+    const UUID EngineMeshes::GCerberusUUID = "76f0v327-6d3e-41ui-n92j-9733lk128178";
 
     std::weak_ptr<GPUMeshAsset> EngineMeshes::GBoxPtrRef = {};
     std::weak_ptr<GPUMeshAsset> EngineMeshes::GSpherePtrRef = {};
+    std::weak_ptr<GPUMeshAsset> EngineMeshes::GCerberusRef = {};
 
     static std::string getRuntimeUniqueMeshAssetName(const std::string &in)
     {
@@ -123,6 +125,12 @@ namespace VT
         m_indexBuffer.reset();
     }
 
+    void GPUMeshAsset::release()
+    {
+        m_vertexBuffer->release();
+        m_indexBuffer->release();
+    }
+
     void GPUMeshAsset::prepareToUpload()
     {
         VT_CORE_ASSERT(m_vertexBufferBindlessIndex == ~0, "Prepare upload");
@@ -176,6 +184,7 @@ namespace VT
 
     void MeshContext::release()
     {
+        m_GPUCache->clear();
         m_GPUCache.reset();
     }
 
@@ -319,8 +328,6 @@ namespace VT
                 sizeof(processor.m_vertices[0]),
                 processor.m_indices.size() * sizeof(processor.m_indices[0]),
                 VK_INDEX_TYPE_UINT32);
-
-        newAsset->setTexturePaths(processor.m_texturePathMap);
 
         // TODO: separate
         {

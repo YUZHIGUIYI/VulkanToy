@@ -38,24 +38,31 @@ namespace VT
         // Mesh upload
         auto GEngineMeshBoxLoad = StaticMeshRawDataLoadTask::buildFromPath(
                 "EngineMeshBox",
-                "../data/mesh/Box.obj",
+                "../data/meshes/Box.obj",
                 EngineMeshes::GBoxUUID,
                 true);
         auto GEngineMeshSphereLoad = StaticMeshRawDataLoadTask::buildFromPath(
                 "EngineMeshSphere",
-                "../data/mesh/Sphere.obj",
+                "../data/meshes/Sphere.obj",
                 EngineMeshes::GSphereUUID,
+                true);
+
+        auto GEngineMeshCerberusLoad = StaticMeshRawDataLoadTask::buildFromPath(
+                "EngineMeshCerberus",
+                "../data/meshes/cerberus.fbx",
+                EngineMeshes::GCerberusUUID,
                 true);
 
         EngineMeshes::GBoxPtrRef = MeshManager::Get()->getMesh(EngineMeshes::GBoxUUID);
         EngineMeshes::GSpherePtrRef = MeshManager::Get()->getMesh(EngineMeshes::GSphereUUID);
+        EngineMeshes::GCerberusRef = MeshManager::Get()->getMesh(EngineMeshes::GCerberusUUID);
     }
 
     void AssetSystem::release()
     {
         // TODO: complete
         TextureManager::Get()->release();
-        MeshManager ::Get()->release();
+        MeshManager::Get()->release();
     }
 
     void AssetSystem::tick(const RuntimeModuleTickData &tickData)

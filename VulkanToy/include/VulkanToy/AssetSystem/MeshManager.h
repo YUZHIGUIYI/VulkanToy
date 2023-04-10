@@ -19,6 +19,9 @@ namespace VT
 
         extern std::weak_ptr<GPUMeshAsset> GSpherePtrRef;
         extern const UUID GSphereUUID;
+
+        extern std::weak_ptr<GPUMeshAsset> GCerberusRef;
+        extern const UUID GCerberusUUID;
     }
 
     class StaticMeshAssetBin final : public AssetBinInterface
@@ -68,9 +71,6 @@ namespace VT
         uint32_t m_vertexBufferBindlessIndex = ~0;
         uint32_t m_indexBufferBindlessIndex = ~0;
 
-        // Texture paths related to mesh asset
-        std::unordered_map<TextureType, std::string> m_texturePathMap;
-
     public:
         // Immediately build GPU mesh asset
         GPUMeshAsset(GPUMeshAsset *fallback, bool isPersistent, const std::string &name,
@@ -80,6 +80,8 @@ namespace VT
         GPUMeshAsset(GPUMeshAsset *fallback, bool isPersistent, const std::string &name);
 
         virtual ~GPUMeshAsset();
+
+        void release();
 
         size_t getSize() const override
         {
@@ -101,20 +103,6 @@ namespace VT
         const uint32_t& getIndicesCount() const { return m_indexCount; }
 
         const uint32_t& getVerticesCount() const { return m_vertexCount; }
-
-        void setTexturePaths(const std::unordered_map<TextureType, std::string>& pathMap)
-        {
-            for (auto& path : pathMap)
-            {
-                m_texturePathMap.try_emplace(path.first, path.second);
-            }
-        }
-
-        const std::unordered_map<TextureType, std::string>& getTexturePaths() const
-        {
-            return m_texturePathMap;
-        }
-
 
         GPUMeshAsset* getReadyAsset()
         {

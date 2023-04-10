@@ -81,7 +81,7 @@ namespace VT
 
         VkDescriptorPoolCreateInfo poolCreateInfo{};
         poolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        poolCreateInfo.flags = 0;
+        poolCreateInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;   // Origin 0
         poolCreateInfo.maxSets = static_cast<uint32_t>(poolSizes.size() * DESCRIPTOR_POOL_SIZE);
         poolCreateInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
         poolCreateInfo.pPoolSizes = poolSizes.data();

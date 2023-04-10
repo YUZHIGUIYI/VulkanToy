@@ -22,9 +22,6 @@ namespace VT
         std::vector<StaticMeshVertex> m_vertices{};
         std::vector<VertexIndexType> m_indices{};
 
-        // texture path, texture uuid
-        std::unordered_map<TextureType, std::string> m_texturePathMap{};
-
         explicit AssimpModelProcess(const std::filesystem::path &inPath);
 
         void processNode(aiNode *node, const aiScene *scene);

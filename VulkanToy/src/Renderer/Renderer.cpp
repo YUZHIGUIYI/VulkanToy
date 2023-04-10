@@ -37,6 +37,8 @@ namespace VT
 
     void Renderer::release()
     {
+        // Uniform buffer must unmap
+        m_uniformBuffer->unmap();
         m_uniformBuffer->release();
         m_uniformBuffer.reset();
         // Depth stencil
@@ -57,8 +59,10 @@ namespace VT
         {
             vkDestroyFramebuffer(VulkanRHI::Device, frameBuffer, nullptr);
         }
+        // Currently use one descriptor set
         vkFreeDescriptorSets(VulkanRHI::Device, VulkanRHI::get()->getDescriptorPoolCache().getPool(),
-                                static_cast<uint32_t>(m_descriptorSets.size()), m_descriptorSets.data());
+                                1, &m_descriptorSet);
+
         vkDestroyPipelineLayout(VulkanRHI::Device, m_pipelineLayout, nullptr);
         vkDestroyPipeline(VulkanRHI::Device, m_pipeline, nullptr);
     }
@@ -105,7 +109,7 @@ namespace VT
 
         // Static mesh component
         vkCmdBindDescriptorSets(currentCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1,
-                                &m_descriptorSets[imageIndex], 0,nullptr);
+                                &m_descriptorSet, 0, nullptr);
         vkCmdBindPipeline(currentCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
 
         // Scene
@@ -328,16 +332,10 @@ namespace VT
     void Renderer::setupDescriptors()
     {
         // Have completed in VulkanDescriptor.cpp file
-        auto size = VulkanRHI::get()->getSwapChainImages().size();
-        m_descriptorSets.resize(size);
-        for (size_t i = 0; i < size; ++i)
-        {
-            bool result = VulkanRHI::get()->descriptorFactoryBegin().bindBuffers(
-                            0, 1, &m_uniformBuffer->getDescriptorBufferInfo(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
-                    .build(m_descriptorSets[i], m_descriptorSetLayout);
-            VT_CORE_ASSERT(result, "Fail to set up vulkan descriptor set");
-        }
-
+        bool result = VulkanRHI::get()->descriptorFactoryBegin()
+                .bindBuffers(0, 1, &m_uniformBuffer->getDescriptorBufferInfo(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
+                .build(m_descriptorSet, m_descriptorSetLayout);
+        VT_CORE_ASSERT(result, "Fail to set up vulkan descriptor set");
     }
 
     void Renderer::setupPipelines()

@@ -26,21 +26,7 @@ namespace VT
     void StaticMeshComponent::loadAssetByUUID()
     {
         cacheGPUMeshAsset = MeshManager::Get()->getMesh(staticMeshUUID);
-        auto& texturePathMap = cacheGPUMeshAsset->getTexturePaths();
         VT_CORE_INFO("Loading mesh asset successfully");
-        for (auto& path : texturePathMap)
-        {
-            // TODO: check
-            auto tmpUUId = buildUUID();
-            if (path.first == TextureType::DIFFUSE)
-            {
-                TextureRawDataLoadTask::buildFromPath(path.second, tmpUUId, VK_FORMAT_R8G8B8A8_UNORM);
-                cacheMaterialAsset->diffuseTexture = TextureManager::Get()->getImage(tmpUUId)->getVulkanImage();
-            } else if (path.first == TextureType::HEIGHT)
-            {
-
-            }
-        }
 
         isMeshReplace = true;
         isMeshReady = cacheGPUMeshAsset->isAssetReady();

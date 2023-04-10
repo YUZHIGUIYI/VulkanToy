@@ -89,6 +89,11 @@ namespace VT
         void clear()
         {
             std::lock_guard<std::mutex> guard(m_mutex);
+            // TODO: remove
+            for (auto& singleCache : m_cachePersistentMap)
+            {
+                singleCache.second->release();
+            }
 
             m_cachePersistentMap.clear();
         }

@@ -54,6 +54,8 @@ namespace VT
 
         virtual ~GPUImageAsset();
 
+        void release();
+
         uint32_t getBindlessIndex()
         {
             return getReadyAsset()->m_bindlessIndex;

@@ -69,6 +69,11 @@ namespace VT
         }
     }
 
+    void GPUImageAsset::release()
+    {
+        m_image->release();
+    }
+
     void GPUImageAsset::prepareToUpload(CommandBufferBase &cmd, VkImageSubresourceRange range)
     {
         // TODO: check
@@ -90,6 +95,8 @@ namespace VT
 
     void TextureContext::release()
     {
+        m_GPUCache->clear();
+
         m_GPUCache.reset();
     }
 

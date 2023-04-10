@@ -31,7 +31,7 @@ namespace VT
         std::vector<VkFramebuffer> m_frameBuffers;
         Ref<VulkanBuffer> m_uniformBuffer;
         // Currently use one descriptor set for camera uniform buffer
-        std::vector<VkDescriptorSet> m_descriptorSets;
+        VkDescriptorSet m_descriptorSet;
         VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
 
         VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
