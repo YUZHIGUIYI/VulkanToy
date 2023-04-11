@@ -196,6 +196,27 @@ namespace VT
 
         // Rect2D scissor
         VkRect2D initRect2D(int32_t width, int32_t height, int32_t offsetX, int32_t offsetY);
+
+        // Descriptor set
+        VkDescriptorSetLayoutBinding initDescriptorSetLayoutBinding(VkDescriptorType type, VkShaderStageFlags stageFlags, uint32_t binding, uint32_t descriptorCount = 1);
+
+        VkDescriptorSetLayoutCreateInfo initDescriptorSetLayoutCreateInfo(const std::vector<VkDescriptorSetLayoutBinding>& bindings);
+
+        VkDescriptorSetAllocateInfo initDescriptorSetAllocateInfo(VkDescriptorPool descriptorPool,
+            const VkDescriptorSetLayout* pSetLayouts,
+            uint32_t descriptorSetCount);
+
+        VkWriteDescriptorSet initWriteDescriptorSet(VkDescriptorSet dstSet,
+                                                    VkDescriptorType type,
+                                                    uint32_t binding,
+                                                    VkDescriptorBufferInfo* bufferInfo,
+                                                    uint32_t descriptorCount = 1);
+
+        VkWriteDescriptorSet initWriteDescriptorSet(VkDescriptorSet dstSet,
+                                                    VkDescriptorType type,
+                                                    uint32_t binding,
+                                                    VkDescriptorImageInfo *imageInfo,
+                                                    uint32_t descriptorCount = 1);
     }
 }
 

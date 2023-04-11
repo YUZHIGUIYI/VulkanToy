@@ -25,17 +25,18 @@ namespace VT
         m_window = Window::Create(props);
         m_window->setEventCallback(VT_BIND_EVENT_FN(Engine::onEvent));
 
+        SceneCameraHandle::Get()->init();
         VulkanRHI::get()->init(static_cast<GLFWwindow *>(m_window->getNativeWindow()));
         AssetSystemHandle::Get()->init();
-        RendererHandle::Get()->init();
         SceneHandle::Get()->init();
-        SceneCameraHandle::Get()->init();
+        RendererHandle::Get()->init();
 
         m_isInitialized = true;
     }
 
     void Engine::release()
     {
+        SceneHandle::Get()->release();
         AssetSystemHandle::Get()->release();
         RendererHandle::Get()->release();
         VulkanRHI::get()->release();
@@ -59,6 +60,7 @@ namespace VT
                 layer->tick(tickData);
             }
             SceneCameraHandle::Get()->tick(tickData);
+            SceneHandle::Get()->tick(tickData);
             AssetSystemHandle::Get()->tick(tickData);
             RendererHandle::Get()->tick(tickData);
 

@@ -11,7 +11,7 @@ layout (binding = 0) uniform UBO
     vec3 camPos;
 } ubo;
 
-//layout (binding = 1) uniform sampler2D samplerBRDFLUT;
+layout (binding = 1) uniform sampler2D albedoTexture;
 
 layout (push_constant) uniform PushConsts
 {
@@ -19,6 +19,6 @@ layout (push_constant) uniform PushConsts
 } componentID;
 
 void main() {
-    outColor = vec4(inUV, 0.0, 1.0);
-    //outColor = texture(samplerBRDFLUT, inUV) * outColor;
+    //outColor = vec4(inUV, 0.0, 1.0);
+    outColor = texture(albedoTexture, inUV);
 }

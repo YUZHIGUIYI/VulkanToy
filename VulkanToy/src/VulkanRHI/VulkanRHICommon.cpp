@@ -520,6 +520,69 @@ namespace VT::Initializers
         rect2D.offset.y = offsetY;
         return rect2D;
     }
+
+    VkDescriptorSetLayoutBinding initDescriptorSetLayoutBinding(VkDescriptorType type, VkShaderStageFlags stageFlags, uint32_t binding, uint32_t descriptorCount)
+    {
+        VkDescriptorSetLayoutBinding setLayoutBinding{};
+        setLayoutBinding.descriptorType = type;
+        setLayoutBinding.stageFlags = stageFlags;
+        setLayoutBinding.binding = binding;
+        setLayoutBinding.descriptorCount = descriptorCount;
+        return setLayoutBinding;
+    }
+
+    VkDescriptorSetLayoutCreateInfo initDescriptorSetLayoutCreateInfo(const std::vector<VkDescriptorSetLayoutBinding>& bindings)
+    {
+        VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo{};
+        descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        descriptorSetLayoutCreateInfo.pBindings = bindings.data();
+        descriptorSetLayoutCreateInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+        return descriptorSetLayoutCreateInfo;
+    }
+
+    VkDescriptorSetAllocateInfo initDescriptorSetAllocateInfo(VkDescriptorPool descriptorPool,
+        const VkDescriptorSetLayout* pSetLayouts,
+        uint32_t descriptorSetCount)
+    {
+        VkDescriptorSetAllocateInfo descriptorSetAllocateInfo {};
+        descriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        descriptorSetAllocateInfo.descriptorPool = descriptorPool;
+        descriptorSetAllocateInfo.pSetLayouts = pSetLayouts;
+        descriptorSetAllocateInfo.descriptorSetCount = descriptorSetCount;
+        return descriptorSetAllocateInfo;
+    }
+
+    VkWriteDescriptorSet initWriteDescriptorSet(VkDescriptorSet dstSet,
+                                                VkDescriptorType type,
+                                                uint32_t binding,
+                                                VkDescriptorBufferInfo* bufferInfo,
+                                                uint32_t descriptorCount)
+    {
+        VkWriteDescriptorSet writeDescriptorSet {};
+        writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writeDescriptorSet.dstSet = dstSet;
+        writeDescriptorSet.descriptorType = type;
+        writeDescriptorSet.dstBinding = binding;
+        writeDescriptorSet.pBufferInfo = bufferInfo;
+        writeDescriptorSet.descriptorCount = descriptorCount;
+        return writeDescriptorSet;
+    }
+
+    VkWriteDescriptorSet initWriteDescriptorSet(VkDescriptorSet dstSet,
+                                                VkDescriptorType type,
+                                                uint32_t binding,
+                                                VkDescriptorImageInfo *imageInfo,
+                                                uint32_t descriptorCount)
+    {
+        VkWriteDescriptorSet writeDescriptorSet {};
+        writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writeDescriptorSet.dstSet = dstSet;
+        writeDescriptorSet.descriptorType = type;
+        writeDescriptorSet.dstBinding = binding;
+        writeDescriptorSet.pImageInfo = imageInfo;
+        writeDescriptorSet.descriptorCount = descriptorCount;
+        return writeDescriptorSet;
+    }
 }
 
 

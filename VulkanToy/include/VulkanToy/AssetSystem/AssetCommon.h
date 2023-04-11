@@ -12,7 +12,7 @@ namespace VT
 
     enum class TextureType : uint8_t
     {
-        DIFFUSE, HEIGHT, SPECULAR, AMBIENT, EMISSIVE
+        Albedo, Normal, Ao, Metallic, Roughness, Cube, BRDFLUT
     };
 
     enum class AssetType

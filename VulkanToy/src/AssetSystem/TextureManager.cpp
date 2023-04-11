@@ -3,12 +3,16 @@
 //
 
 #include <VulkanToy/AssetSystem/TextureManager.h>
+#include <VulkanToy/VulkanRHI/VulkanRHI.h>
 
 #include <stb_image.h>
 #include <stb_image_resize.h>
 
 namespace VT
 {
+    const UUID EngineImages::GAoImageUUID = "56y55c7e-9132-7d7y-a98f-a0f4f4d1fd53";
+    std::weak_ptr<GPUImageAsset>  EngineImages::GAoImageAsset = {};
+
     static std::string getRuntimeUniqueImageAssetName(const std::string &in)
     {
         static size_t GRuntimeId = 0;
@@ -34,30 +38,34 @@ namespace VT
     }
 
     GPUImageAsset::GPUImageAsset(GPUImageAsset *fallback, bool isPersistent, VkFormat format, const std::string &name,
-                                uint32_t mipmpCount, uint32_t width, uint32_t height, uint32_t depth)
+                                uint32_t mipmapCount, uint32_t width, uint32_t height, uint32_t depth)
     : GPUAssetInterface(fallback, isPersistent)
     {
         VT_CORE_ASSERT(m_image == nullptr, "Ensure image asset only init once");
 
-        VkImageCreateInfo info{};
-        info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        info.flags = {};
-        info.imageType = VK_IMAGE_TYPE_2D;
-        info.format = format;
-        info.extent.width = width;
-        info.extent.height = height;
-        info.extent.depth = depth;
-        info.arrayLayers = 1;
-        info.mipLevels = mipmpCount;
-        info.samples = VK_SAMPLE_COUNT_1_BIT;
-        info.tiling = VK_IMAGE_TILING_OPTIMAL;
-        info.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-        info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        VkImageCreateInfo imageCreateInfo{};
+        imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        imageCreateInfo.flags = {};
+        imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+        imageCreateInfo.format = format;
+        imageCreateInfo.extent.width = width;
+        imageCreateInfo.extent.height = height;
+        imageCreateInfo.extent.depth = depth;
+        imageCreateInfo.arrayLayers = 1;
+        imageCreateInfo.mipLevels = mipmapCount;
+        imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        imageCreateInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        if (mipmapCount > 1)
+        {
+            imageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        }
+        imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
         m_image = VulkanImage::create(
             getRuntimeUniqueImageAssetName(name).c_str(),
-            info,
+            imageCreateInfo,
             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
 
@@ -77,13 +85,13 @@ namespace VT
     void GPUImageAsset::prepareToUpload(CommandBufferBase &cmd, VkImageSubresourceRange range)
     {
         // TODO: check
-        m_image->transitionLayout(cmd.cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, range);
+        m_image->transitionLayout(cmd.cmd, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, range);
     }
 
     void GPUImageAsset::finishUpload(CommandBufferBase &cmd, VkImageSubresourceRange range)
     {
         // TODO: check
-        m_image->transitionLayout(cmd.cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, range);
+        m_image->transitionLayout(cmd.cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, range);
         //
 
     }
@@ -119,11 +127,11 @@ namespace VT
         region.imageSubresource.baseArrayLayer = 0;
         region.imageSubresource.layerCount = 1;
         region.imageOffset = { 0, 0, 0 };
-        region.imageExtent = imageAssetGPU->getImage().getExtent();
+        region.imageExtent = imageAssetGPU->getVulkanImage()->getExtent();
 
         vkCmdCopyBufferToImage(commandBuffer.cmd,
                                 stageBuffer.getBuffer(),
-                                imageAssetGPU->getImage().getImage(),
+                                imageAssetGPU->getImage(),
                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                 1,
                                 &region);
@@ -132,10 +140,10 @@ namespace VT
     }
 
     Ref<TextureRawDataLoadTask> TextureRawDataLoadTask::buildFromPath(const std::filesystem::path &path,
-                                                                        const UUID &uuid, VkFormat format)
+                                                                        const UUID &uuid, VkFormat format, TextureType textureType)
     {
         int32_t texWidth, texHeight, texChannels;
-        stbi_uc* pixels = stbi_load(path.string().c_str(), &texWidth, &texHeight, &texChannels, GAssetTextureChannels);
+        stbi_uc* pixels = stbi_load(path.string().c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 
         if (!pixels)
         {
@@ -149,20 +157,82 @@ namespace VT
             return nullptr;
         }
 
-        auto newAsset = CreateRef<GPUImageAsset>(
+        VkDeviceSize imageSize = texWidth * texHeight * GAssetTextureChannels;
+        // uint32_t mipLevel = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
+        uint32_t mipLevel = 1;
+
+        // Staging buffer
+        auto stagingBuffer = VulkanBuffer::create2(
+                "Staging buffer",
+                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,
+                imageSize);
+        RHICheck(stagingBuffer->map());
+        stagingBuffer->copyData(pixels, static_cast<size_t>(imageSize));
+        stagingBuffer->unmap();
+
+        // Create image buffer
+        auto newImageAsset = CreateRef<GPUImageAsset>(
                 nullptr,
                 true,
                 format,
                 path.stem().string(),
-                1,
+                mipLevel,
                 texWidth,
                 texHeight,
                 1);
-        TextureManager::Get()->insertGPUAsset(uuid, newAsset);
+        // Transition image layout
+        VkImageSubresourceRange subresourceRange{};
+        subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        subresourceRange.baseMipLevel = 0;
+        subresourceRange.levelCount = mipLevel;
+        subresourceRange.baseArrayLayer = 0;
+        subresourceRange.layerCount = 1;
+        newImageAsset->getVulkanImage()->transitionLayoutImmediately(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
+        // Copy staging buffer to image
+        newImageAsset->getVulkanImage()->copyFromStagingBuffer(stagingBuffer->getBuffer(), texWidth, texHeight);
+        // Generate mipmaps
+        if (mipLevel > 1)
+        {
+            // TODO: fix
+            newImageAsset->getVulkanImage()->generateMipmaps();
+        } else
+        {
+            // TODO: fix
+            // Otherwise use shader read only layout
+            newImageAsset->getVulkanImage()->transitionLayoutImmediately(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subresourceRange);
+        }
+        // Release staging buffer
+        stagingBuffer->release();
+        // Create image view
+        subresourceRange.levelCount = 1;
+        newImageAsset->getVulkanImage()->createView(subresourceRange, VK_IMAGE_VIEW_TYPE_2D);
+        // Create sampler if not exists
+        if (textureType == TextureType::Albedo && !VulkanRHI::SamplerManager->isContain(static_cast<uint8_t>(textureType)))
+        {
+            VkPhysicalDeviceProperties properties = VulkanRHI::get()->getPhysicalDeviceProperties();
+            VkSamplerCreateInfo samplerInfo = Initializers::initLinearRepeatMipPointSamplerInfo();
+            samplerInfo.anisotropyEnable = VK_TRUE;
+            samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+            samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+            samplerInfo.unnormalizedCoordinates = VK_FALSE;
+            samplerInfo.compareEnable = VK_FALSE;
+            samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+
+            samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+            samplerInfo.minLod = 0.0f;
+            samplerInfo.maxLod = static_cast<float>(mipLevel);
+            samplerInfo.mipLodBias = 0.0f;
+
+            VulkanRHI::SamplerManager->createSampler(samplerInfo, static_cast<uint8_t>(textureType));
+        }
+        // Insert GPU asset
+        TextureManager::Get()->insertGPUAsset(uuid, newImageAsset);
 
         // Create new task
         Ref<TextureRawDataLoadTask> newTask = CreateRef<TextureRawDataLoadTask>();
-        newTask->imageAssetGPU = newAsset;
+        newTask->imageAssetGPU = newImageAsset;
 
         // Prepare to upload dat
         newTask->cacheRawData.resize(texWidth * texHeight * 1 * GAssetTextureChannels);

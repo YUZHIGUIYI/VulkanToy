@@ -56,6 +56,13 @@ namespace VT
         EngineMeshes::GBoxPtrRef = MeshManager::Get()->getMesh(EngineMeshes::GBoxUUID);
         EngineMeshes::GSpherePtrRef = MeshManager::Get()->getMesh(EngineMeshes::GSphereUUID);
         EngineMeshes::GCerberusRef = MeshManager::Get()->getMesh(EngineMeshes::GCerberusUUID);
+
+        // Texture upload
+        auto GEngineImageAoLoad = TextureRawDataLoadTask::buildFromPath(
+                "../data/textures/cerberus_A.png",
+                EngineImages::GAoImageUUID,
+                VK_FORMAT_R8G8B8A8_SRGB,
+                TextureType::Albedo);
     }
 
     void AssetSystem::release()

@@ -4,7 +4,6 @@
 
 #include <VulkanToy/Renderer/Renderer.h>
 #include <VulkanToy/VulkanRHI/VulkanRHI.h>
-#include <VulkanToy/Renderer/SceneCamera.h>
 #include <VulkanToy/AssetSystem/MeshMisc.h>
 #include <VulkanToy/Scene/Scene.h>
 
@@ -26,8 +25,7 @@ namespace VT
         setupDepthStencil();
         setupRenderPass();
         setupFrameBuffers();
-        setupUniformBuffers();
-        setupDescriptors();
+        setupDescriptorLayout();
         setupPipelines();
 
         VulkanRHI::get()->onAfterSwapChainRebuild.subscribe([](){
@@ -37,10 +35,6 @@ namespace VT
 
     void Renderer::release()
     {
-        // Uniform buffer must unmap
-        m_uniformBuffer->unmap();
-        m_uniformBuffer->release();
-        m_uniformBuffer.reset();
         // Depth stencil
         if (m_depthStencil.image != VK_NULL_HANDLE)
         {
@@ -59,9 +53,8 @@ namespace VT
         {
             vkDestroyFramebuffer(VulkanRHI::Device, frameBuffer, nullptr);
         }
-        // Currently use one descriptor set
-        vkFreeDescriptorSets(VulkanRHI::Device, VulkanRHI::get()->getDescriptorPoolCache().getPool(),
-                                1, &m_descriptorSet);
+
+        vkDestroyDescriptorSetLayout(VulkanRHI::Device, m_descriptorSetLayout, nullptr);
 
         vkDestroyPipelineLayout(VulkanRHI::Device, m_pipelineLayout, nullptr);
         vkDestroyPipeline(VulkanRHI::Device, m_pipeline, nullptr);
@@ -73,8 +66,6 @@ namespace VT
 
         // VulkanRHI - acquire next image
         uint32_t imageIndex = VulkanRHI::get()->acquireNextPresentImage();
-
-        updateUniformBuffers();
 
         // Record
         VkCommandBufferBeginInfo cmdBufInfo = Initializers::initCommandBufferBeginInfo();
@@ -107,17 +98,10 @@ namespace VT
         VkRect2D scissor = Initializers::initRect2D((int32_t)extent.width, (int32_t)extent.height, 0, 0);
         vkCmdSetScissor(currentCmd, 0, 1, &scissor);
 
-        // Static mesh component
-        vkCmdBindDescriptorSets(currentCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1,
-                                &m_descriptorSet, 0, nullptr);
         vkCmdBindPipeline(currentCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
 
-        // Scene
-        auto& components = SceneHandle::Get()->getComponents();
-        for (auto component : components)
-        {
-            component->onRenderTick(currentCmd, m_pipelineLayout);
-        }
+        // Render scene
+        SceneHandle::Get()->onRenderTick(currentCmd, m_pipelineLayout);
 
         vkCmdEndRenderPass(currentCmd);
 
@@ -312,30 +296,16 @@ namespace VT
         }
     }
 
-    void Renderer::setupUniformBuffers()
+    void Renderer::setupDescriptorLayout()
     {
-        // TODO: check
-        m_uniformBuffer = VulkanBuffer::create2(
-                "CameraUniformBuffer",
-                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,
-                sizeof(CameraParameters));
+        // TODO: more
+        std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings{
+            Initializers::initDescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0),
+            Initializers::initDescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1)
+        };
 
-        // Map persistent
-        RHICheck(m_uniformBuffer->map());
-
-        // Update uniform buffers
-        updateUniformBuffers();
-    }
-
-    void Renderer::setupDescriptors()
-    {
-        // Have completed in VulkanDescriptor.cpp file
-        bool result = VulkanRHI::get()->descriptorFactoryBegin()
-                .bindBuffers(0, 1, &m_uniformBuffer->getDescriptorBufferInfo(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
-                .build(m_descriptorSet, m_descriptorSetLayout);
-        VT_CORE_ASSERT(result, "Fail to set up vulkan descriptor set");
+        VkDescriptorSetLayoutCreateInfo descriptorLayout = Initializers::initDescriptorSetLayoutCreateInfo(setLayoutBindings);
+        RHICheck(vkCreateDescriptorSetLayout(VulkanRHI::Device, &descriptorLayout, nullptr, &m_descriptorSetLayout));
     }
 
     void Renderer::setupPipelines()
@@ -398,15 +368,6 @@ namespace VT
         shaderStages[1] = Initializers::initPipelineShaderStage(shaderModuleFrag, VK_SHADER_STAGE_FRAGMENT_BIT);
 
         RHICheck(vkCreateGraphicsPipelines(VulkanRHI::Device, VK_NULL_HANDLE, 1, &pipelineCI, nullptr, &m_pipeline));
-    }
-
-    void Renderer::updateUniformBuffers()
-    {
-        m_cameraParas.projection = SceneCameraHandle::Get()->getProjection();
-        m_cameraParas.view = SceneCameraHandle::Get()->getViewMatrix();
-        m_cameraParas.position = SceneCameraHandle::Get()->getPosition();
-
-        m_uniformBuffer->copyData(&m_cameraParas, sizeof(CameraParameters));
     }
 }
 

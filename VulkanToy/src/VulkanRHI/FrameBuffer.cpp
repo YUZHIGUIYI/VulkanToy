@@ -70,16 +70,16 @@ namespace VT
             // Check if we want to write to this attachment
             if (colorAttachment.isValid)
             {
-                VT_CORE_ASSERT(colorAttachment.layer < colorAttachment.image->m_createInfo.arrayLayers, "Image does not contain this layer");
-                imageViews.push_back(colorAttachment.image->m_cacheImageViews[colorAttachment.layer]);
+                VT_CORE_ASSERT(colorAttachment.layer < colorAttachment.image->getInfo().arrayLayers, "Image does not contain this layer");
+                //imageViews.push_back(colorAttachment.image->m_cacheImageViews[colorAttachment.layer]);    // TODO: fix
             }
         }
 
         VT_CORE_ASSERT(rpDepthAttachment.isValid == m_depthAttachment.isValid, "Frame buffer depth attachment to render pass depth attachment mismatch");
         if (m_depthAttachment.isValid)
         {
-            VT_CORE_ASSERT(m_depthAttachment.layer < m_depthAttachment.image->m_createInfo.arrayLayers, "Image does not contain this layer");
-            imageViews.push_back(m_depthAttachment.image->m_cacheImageViews[m_depthAttachment.layer]);
+            VT_CORE_ASSERT(m_depthAttachment.layer < m_depthAttachment.image->getInfo().arrayLayers, "Image does not contain this layer");
+            //imageViews.push_back(m_depthAttachment.image->m_cacheImageViews[m_depthAttachment.layer]);  // TODO: fix
         }
 
         if (m_isComplete)

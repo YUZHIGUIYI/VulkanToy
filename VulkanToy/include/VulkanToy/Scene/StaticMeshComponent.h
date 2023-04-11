@@ -16,13 +16,15 @@ namespace VT
         Ref<GPUMeshAsset> cacheGPUMeshAsset = nullptr;
         // Material is optional, if no exist, store mesh info in GPU mesh asset directly
         Ref<StandardPBRMaterial> cacheMaterialAsset = nullptr;
+        // Descriptor set
+        VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
 
         // Asset uuid
         UUID staticMeshUUID{};
 
-        glm::mat4 translation;
-        glm::mat4 rotation;
-        glm::mat4 scale;
+        glm::vec3 translation{ 0.0f, 0.0f, 0.0f };
+        glm::vec3 rotation{ 0.0f };
+        glm::vec3 scale{ 1.0f, 1.0f, 1.0f };
 
         // Mesh load ready
         bool isMeshReady = false;
@@ -36,6 +38,8 @@ namespace VT
         void setMeshUUID(const UUID &in);
 
         void loadAssetByUUID();
+
+        void setupDescriptors() override;
 
         void tick(const RuntimeModuleTickData &tickData) override;
 

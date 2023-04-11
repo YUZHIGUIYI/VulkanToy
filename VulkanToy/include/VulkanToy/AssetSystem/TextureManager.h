@@ -10,6 +10,14 @@
 
 namespace VT
 {
+    class GPUImageAsset;
+
+    namespace EngineImages
+    {
+        extern std::weak_ptr<GPUImageAsset> GAoImageAsset;
+        extern const UUID GAoImageUUID;
+    }
+
     class ImageAssetBin final : public AssetBinInterface
     {
     private:
@@ -25,17 +33,17 @@ namespace VT
         // TODO: finish
         void buildMipmapDataRGBA8(float cutOff);
 
-        AssetType getAssetType() const override
+        [[nodiscard]] AssetType getAssetType() const override
         {
             return AssetType::Texture;
         }
 
-        const std::vector<std::vector<uint8_t>>& getMipmapData() const
+        [[nodiscard]] const std::vector<std::vector<uint8_t>>& getMipmapData() const
         {
             return m_mipmapData;
         }
 
-        const std::vector<uint8_t>& getRawData() const
+        [[nodiscard]] const std::vector<uint8_t>& getRawData() const
         {
             return m_rawData;
         }
@@ -49,7 +57,7 @@ namespace VT
 
     public:
         GPUImageAsset(GPUImageAsset* fallback, bool isPersistent, VkFormat format,
-                        const std::string &name, uint32_t mipmpCount,
+                        const std::string &name, uint32_t mipmapCount,
                         uint32_t width, uint32_t height, uint32_t depth);
 
         virtual ~GPUImageAsset();
@@ -72,7 +80,7 @@ namespace VT
             return m_image->getMemorySize();
         }
 
-        auto& getImage() { return *m_image; }
+        auto& getImage() { return m_image->getImage(); }
 
         Ref<VulkanImage> getVulkanImage() const { return m_image; }
 
@@ -150,7 +158,8 @@ namespace VT
         static Ref<TextureRawDataLoadTask> buildFromPath(
                 const std::filesystem::path &path,
                 const UUID &uuid,
-                VkFormat format);
+                VkFormat format,
+                TextureType textureType);
 
         // Build load task from same value
         static Ref<TextureRawDataLoadTask> buildFlatTexture(

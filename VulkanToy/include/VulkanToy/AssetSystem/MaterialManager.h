@@ -42,17 +42,16 @@ namespace VT
 
         glm::vec4 baseColorFactor{ 1.0f };
 
-        Ref<VulkanImage> baseColorTexture = nullptr;
-        Ref<VulkanImage> metallicRoughnessTexture = nullptr;
+        Ref<VulkanImage> albedoTexture = nullptr;
         Ref<VulkanImage> normalTexture = nullptr;
-        Ref<VulkanImage> occlusionTexture = nullptr;
-        Ref<VulkanImage> emissiveTexture = nullptr;
+        Ref<VulkanImage> aoTexture = nullptr;
+        Ref<VulkanImage> metallicTexture = nullptr;
+        Ref<VulkanImage> roughnessTexture = nullptr;
 
-        Ref<VulkanImage> specularGlossinessTexture = nullptr;
-        Ref<VulkanImage> diffuseTexture = nullptr;
+        Ref<VulkanImage> samplerIrradiance = nullptr;
+        Ref<VulkanImage> samplerBRDFLUT = nullptr;
+        Ref<VulkanImage> prefilteredMap = nullptr;
 
-        VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
-
-        explicit StandardPBRMaterial(const UUID &uuid, const std::string &name);
+        StandardPBRMaterial(const UUID &uuid, const std::string &name);
     };
 }

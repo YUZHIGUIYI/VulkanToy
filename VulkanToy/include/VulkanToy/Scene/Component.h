@@ -11,8 +11,9 @@ namespace VT
     struct Component
     {
         virtual void init() {}
+        virtual void release() {}
+        virtual void setupDescriptors() {}
         virtual void tick(const RuntimeModuleTickData &tickData) {};
         virtual void onRenderTick(VkCommandBuffer cmd, VkPipelineLayout pipelineLayout) {}
-        virtual void release() {}
     };
 }
