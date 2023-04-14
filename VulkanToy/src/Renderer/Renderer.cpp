@@ -5,13 +5,14 @@
 #include <VulkanToy/Renderer/Renderer.h>
 #include <VulkanToy/VulkanRHI/VulkanRHI.h>
 #include <VulkanToy/AssetSystem/MeshMisc.h>
-#include <VulkanToy/Scene/Scene.h>
+#include <VulkanToy/Renderer/PreprocessPass.h>
 
 namespace VT
 {
     Renderer::Renderer()
     {
-
+        m_passCollector.emplace_back(CreateRef<SkyboxPass>());
+        m_passCollector.emplace_back(CreateRef<PBRPass>());
     }
 
     Renderer::~Renderer()
@@ -21,11 +22,11 @@ namespace VT
 
     void Renderer::init()
     {
-        createSynchronizationPrimitives();
+        PreprocessPassHandle::Get()->init();
+
         setupDepthStencil();
         setupRenderPass();
         setupFrameBuffers();
-        setupDescriptorLayout();
         setupPipelines();
 
         VulkanRHI::get()->onAfterSwapChainRebuild.subscribe([](){
@@ -48,16 +49,20 @@ namespace VT
         {
             vkFreeMemory(VulkanRHI::Device, m_depthStencil.memory, nullptr);
         }
-
+        // Frame buffers
         for (auto& frameBuffer : m_frameBuffers)
         {
             vkDestroyFramebuffer(VulkanRHI::Device, frameBuffer, nullptr);
         }
-
-        vkDestroyDescriptorSetLayout(VulkanRHI::Device, m_descriptorSetLayout, nullptr);
-
-        vkDestroyPipelineLayout(VulkanRHI::Device, m_pipelineLayout, nullptr);
-        vkDestroyPipeline(VulkanRHI::Device, m_pipeline, nullptr);
+        // Pass collector
+        for (auto& passInterface : m_passCollector)
+        {
+            std::visit([] (auto&& pass) {
+                pass->release();
+            }, passInterface);
+        }
+        // Preprocess pass
+        PreprocessPassHandle::Get()->release();
     }
 
     void Renderer::tick(const RuntimeModuleTickData &tickData)
@@ -98,10 +103,13 @@ namespace VT
         VkRect2D scissor = Initializers::initRect2D((int32_t)extent.width, (int32_t)extent.height, 0, 0);
         vkCmdSetScissor(currentCmd, 0, 1, &scissor);
 
-        vkCmdBindPipeline(currentCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
-
-        // Render scene
-        SceneHandle::Get()->onRenderTick(currentCmd, m_pipelineLayout);
+        // Pass render
+        for (auto&& passInterface : m_passCollector)
+        {
+            std::visit([currentCmd] (auto&& pass) {
+                pass->onRenderTick(currentCmd);
+            }, passInterface);
+        }
 
         vkCmdEndRenderPass(currentCmd);
 
@@ -149,11 +157,6 @@ namespace VT
 
         setupDepthStencil();
         setupFrameBuffers();
-    }
-
-    void Renderer::createSynchronizationPrimitives()
-    {
-
     }
 
     void Renderer::setupDepthStencil()
@@ -296,78 +299,14 @@ namespace VT
         }
     }
 
-    void Renderer::setupDescriptorLayout()
-    {
-        // TODO: more
-        std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings{
-            Initializers::initDescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0),
-            Initializers::initDescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1)
-        };
-
-        VkDescriptorSetLayoutCreateInfo descriptorLayout = Initializers::initDescriptorSetLayoutCreateInfo(setLayoutBindings);
-        RHICheck(vkCreateDescriptorSetLayout(VulkanRHI::Device, &descriptorLayout, nullptr, &m_descriptorSetLayout));
-    }
-
     void Renderer::setupPipelines()
     {
-        VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = Initializers::initPipelineInputAssemblyState(
-                VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
-
-        VkPipelineRasterizationStateCreateInfo rasterizationState = Initializers::initPipelineRasterizationState(
-                VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-
-        VkPipelineColorBlendAttachmentState blendAttachmentState = Initializers::initPipelineColorBlendAttachmentState(
-                0xf, VK_FALSE);
-
-        VkPipelineColorBlendStateCreateInfo colorBlendState = Initializers::initPipelineColorBlendState(
-                1, &blendAttachmentState);
-
-        VkPipelineDepthStencilStateCreateInfo depthStencilState = Initializers::initPipelineDepthStencilState(
-                VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
-
-        VkPipelineViewportStateCreateInfo viewportState = Initializers::initPipelineViewportState(
-                1, 1);
-
-        VkPipelineMultisampleStateCreateInfo multisampleState = Initializers::initPipelineMultisampleState(
-                VK_SAMPLE_COUNT_1_BIT);
-
-        std::vector<VkDynamicState> dynamicStateEnables{
-            VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
-        VkPipelineDynamicStateCreateInfo dynamicState = Initializers::initPipelineDynamicState(dynamicStateEnables);
-
-        // Create pipeline layout
-        VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = Initializers::initPipelineLayout(&m_descriptorSetLayout, 1);
-
-        std::vector<VkPushConstantRange> pushConstantRanges{
-            Initializers::initPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::mat4), 0),
-            Initializers::initPushConstantRange(VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(int32_t), sizeof(glm::mat4))
-        };
-        pipelineLayoutCreateInfo.pushConstantRangeCount = pushConstantRanges.size();
-        pipelineLayoutCreateInfo.pPushConstantRanges = pushConstantRanges.data();
-        RHICheck(vkCreatePipelineLayout(VulkanRHI::Device, &pipelineLayoutCreateInfo, nullptr, &m_pipelineLayout));
-
-        std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages{};
-
-        // Create pipeline
-        VkGraphicsPipelineCreateInfo pipelineCI = Initializers::initPipeline(m_pipelineLayout, m_renderPass);
-        pipelineCI.pInputAssemblyState = &inputAssemblyState;
-        pipelineCI.pRasterizationState = &rasterizationState;
-        pipelineCI.pColorBlendState = &colorBlendState;
-        pipelineCI.pMultisampleState = &multisampleState;
-        pipelineCI.pViewportState = &viewportState;
-        pipelineCI.pDepthStencilState = &depthStencilState;
-        pipelineCI.pDynamicState = &dynamicState;
-        pipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
-        pipelineCI.pStages = shaderStages.data();
-        pipelineCI.pVertexInputState = StaticMeshVertex::getPipelineVertexInputState(
-                { VertexComponent::Position, VertexComponent::Normal, VertexComponent::UV });
-
-        auto shaderModuleVert = VulkanRHI::ShaderManager->getShader("sample.vert.spv");
-        auto shaderModuleFrag = VulkanRHI::ShaderManager->getShader("sample.frag.spv");
-        shaderStages[0] = Initializers::initPipelineShaderStage(shaderModuleVert, VK_SHADER_STAGE_VERTEX_BIT);
-        shaderStages[1] = Initializers::initPipelineShaderStage(shaderModuleFrag, VK_SHADER_STAGE_FRAGMENT_BIT);
-
-        RHICheck(vkCreateGraphicsPipelines(VulkanRHI::Device, VK_NULL_HANDLE, 1, &pipelineCI, nullptr, &m_pipeline));
+        for (auto&& passInterface : m_passCollector)
+        {
+            std::visit([this] (auto&& pass) {
+                pass->init(m_renderPass);
+            }, passInterface);
+        }
     }
 }
 

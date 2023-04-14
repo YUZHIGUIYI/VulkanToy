@@ -49,13 +49,20 @@ namespace VT
 
         auto GEngineMeshCerberusLoad = StaticMeshRawDataLoadTask::buildFromPath(
                 "EngineMeshCerberus",
-                "../data/meshes/cerberus.fbx",
+                "../data/meshes/Cerberus.fbx",
                 EngineMeshes::GCerberusUUID,
+                true);
+
+        auto GEngineMeshSkyboxLoad = StaticMeshRawDataLoadTask::buildFromPath(
+                "EngineMeshSkybox",
+                "../data/meshes/Skybox.obj",
+                EngineMeshes::GSkyBoxUUID,
                 true);
 
         EngineMeshes::GBoxPtrRef = MeshManager::Get()->getMesh(EngineMeshes::GBoxUUID);
         EngineMeshes::GSpherePtrRef = MeshManager::Get()->getMesh(EngineMeshes::GSphereUUID);
         EngineMeshes::GCerberusRef = MeshManager::Get()->getMesh(EngineMeshes::GCerberusUUID);
+        EngineMeshes::GSkyBoxRef = MeshManager::Get()->getMesh(EngineMeshes::GSkyBoxUUID);
 
         // Texture upload
         auto GEngineImageAoLoad = TextureRawDataLoadTask::buildFromPath(

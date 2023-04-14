@@ -23,9 +23,11 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/bin)
 find_package(Vulkan REQUIRED)
 find_program(GLSLC_PROGRAM glslc REQUIRED)
 
-# Compile shader files
-execute_process(COMMAND ${GLSLC_PROGRAM} ${PROJECT_SOURCE_DIR}/data/shaders/sample.vert -o ${PROJECT_SOURCE_DIR}/data/shaders/spirv/sample.vert.spv)
-execute_process(COMMAND ${GLSLC_PROGRAM} ${PROJECT_SOURCE_DIR}/data/shaders/sample.frag -o ${PROJECT_SOURCE_DIR}/data/shaders/spirv/sample.frag.spv)
+# Compile shader files - vertex and fragment shader
+execute_process(COMMAND ${GLSLC_PROGRAM} ${PROJECT_SOURCE_DIR}/data/shaders/PBRTexture.vert -o ${PROJECT_SOURCE_DIR}/data/shaders/spirv/PBRTexture.vert.spv)
+execute_process(COMMAND ${GLSLC_PROGRAM} ${PROJECT_SOURCE_DIR}/data/shaders/PBRTexture.frag -o ${PROJECT_SOURCE_DIR}/data/shaders/spirv/PBRTexture.frag.spv)
+execute_process(COMMAND ${GLSLC_PROGRAM} ${PROJECT_SOURCE_DIR}/data/shaders/SkyBox.vert -o ${PROJECT_SOURCE_DIR}/data/shaders/spirv/SkyBox.vert.spv)
+execute_process(COMMAND ${GLSLC_PROGRAM} ${PROJECT_SOURCE_DIR}/data/shaders/SkyBox.frag -o ${PROJECT_SOURCE_DIR}/data/shaders/spirv/SkyBox.frag.spv)
 
 include(cmake/AddThirdParties.cmake)
 add_subdirectory(VulkanToy)

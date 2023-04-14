@@ -12,10 +12,12 @@ namespace VT
     const UUID EngineMeshes::GBoxUUID = "12a68c4e-8352-4d97-a914-a0f4f4d1fd28";
     const UUID EngineMeshes::GSphereUUID = "45f0d878-6d3f-11ed-a1eb-0242ac120002";
     const UUID EngineMeshes::GCerberusUUID = "76f0v327-6d3e-41ui-n92j-9733lk128178";
+    const UUID EngineMeshes::GSkyBoxUUID = "90nhgo521-xxki-ilfg-kh43-0ui6lk163e3";
 
     std::weak_ptr<GPUMeshAsset> EngineMeshes::GBoxPtrRef = {};
     std::weak_ptr<GPUMeshAsset> EngineMeshes::GSpherePtrRef = {};
     std::weak_ptr<GPUMeshAsset> EngineMeshes::GCerberusRef = {};
+    std::weak_ptr<GPUMeshAsset> EngineMeshes::GSkyBoxRef = {};
 
     static std::string getRuntimeUniqueMeshAssetName(const std::string &in)
     {
@@ -267,7 +269,8 @@ namespace VT
     {
         Assimp::Importer importer;
         const aiScene* scene = importer.ReadFile(path.string(),
-            aiProcessPreset_TargetRealtime_Fast | aiProcess_FlipUVs | aiProcess_GenBoundingBoxes);
+            aiProcessPreset_TargetRealtime_Fast | aiProcess_FlipUVs | aiProcess_GenBoundingBoxes |
+                aiProcess_PreTransformVertices | aiProcess_OptimizeMeshes | aiProcess_Debone | aiProcess_ValidateDataStructure);
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
         {
             VT_CORE_ERROR("Error::Assimp::{0}", importer.GetErrorString());
@@ -275,7 +278,8 @@ namespace VT
         }
 
         AssimpModelProcess processor{ path.parent_path() };
-        processor.processNode(scene->mRootNode, scene);   // TODO: two were set nullptr
+        // processor.processNode(scene->mRootNode, scene);        // Old method
+        processor.processMesh(scene->mMeshes[0], scene);    // New method
 
         if (isPersistent)
         {

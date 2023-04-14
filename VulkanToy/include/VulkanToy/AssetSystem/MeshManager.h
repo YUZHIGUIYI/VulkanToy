@@ -22,6 +22,9 @@ namespace VT
 
         extern std::weak_ptr<GPUMeshAsset> GCerberusRef;
         extern const UUID GCerberusUUID;
+
+        extern std::weak_ptr<GPUMeshAsset> GSkyBoxRef;
+        extern const UUID GSkyBoxUUID;
     }
 
     class StaticMeshAssetBin final : public AssetBinInterface

@@ -446,11 +446,41 @@ namespace VT
                 &barrier);
     }
 
+    void VulkanImage::transitionLayout(VkImageLayout oldLayout, VkImageLayout newLayout, VkAccessFlags srcAccessMask,
+                                        VkAccessFlags dstAccessMask, VkPipelineStageFlags srcStageMask,
+                                        VkPipelineStageFlags dstStageMask, VkImageSubresourceRange range)
+    {
+        VulkanRHI::executeImmediatelyMajorGraphics([oldLayout, newLayout, srcAccessMask, dstAccessMask, srcStageMask, dstStageMask, range, this] (VkCommandBuffer cmd) {
+            VkImageMemoryBarrier barrier{};
+            barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            barrier.oldLayout = oldLayout;
+            barrier.newLayout = newLayout;
+            barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barrier.image = m_image;
+            barrier.subresourceRange = range;
+            barrier.srcAccessMask = srcAccessMask;
+            barrier.dstAccessMask = dstAccessMask;
+
+            vkCmdPipelineBarrier(
+                    cmd,
+                    srcStageMask,
+                    dstStageMask,
+                    0,
+                    0,
+                    nullptr,
+                    0,
+                    nullptr,
+                    1,
+                    &barrier);
+        });
+    }
+
     // TODO: combine two functions
     void VulkanImage::transitionLayoutImmediately(VkImageLayout oldLayout, VkImageLayout newLayout, VkImageSubresourceRange range)
     {
-        VulkanRHI::executeImmediatelyMajorGraphics([oldLayout, newLayout, range, this] (VkCommandBuffer cmb) {
-            transitionLayout(cmb, VulkanRHI::get()->getGraphicsFamily(), oldLayout, newLayout, range);
+        VulkanRHI::executeImmediatelyMajorGraphics([oldLayout, newLayout, range, this] (VkCommandBuffer cmd) {
+            transitionLayout(cmd, VulkanRHI::get()->getGraphicsFamily(), oldLayout, newLayout, range);
         });
     }
 

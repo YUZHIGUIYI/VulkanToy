@@ -28,8 +28,8 @@ namespace VT
         SceneCameraHandle::Get()->init();
         VulkanRHI::get()->init(static_cast<GLFWwindow *>(m_window->getNativeWindow()));
         AssetSystemHandle::Get()->init();
-        SceneHandle::Get()->init();
         RendererHandle::Get()->init();
+        SceneHandle::Get()->init();
 
         m_isInitialized = true;
     }

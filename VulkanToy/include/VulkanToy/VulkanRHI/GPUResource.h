@@ -132,6 +132,9 @@ namespace VT
             VkImageLayout newLayout,
             VkImageSubresourceRange range);
 
+        void transitionLayout(VkImageLayout oldLayout, VkImageLayout newLayout, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask,
+                                VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkImageSubresourceRange range);
+
         // Transition on major graphics
         void transitionLayoutImmediately(VkImageLayout oldLayout, VkImageLayout newLayout, VkImageSubresourceRange range);
 

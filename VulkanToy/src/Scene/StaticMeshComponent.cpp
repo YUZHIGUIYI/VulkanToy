@@ -36,7 +36,7 @@ namespace VT
         cacheMaterialAsset->albedoTexture = imageAssetTemp->getVulkanImage();
 
         isMeshReplace = true;
-        isMeshReady = cacheGPUMeshAsset->isAssetReady();
+        isMeshReady = true;
 
         setupDescriptors();
     }
@@ -50,9 +50,9 @@ namespace VT
         imageInfo.sampler = VulkanRHI::SamplerManager->getSampler(static_cast<uint8_t>(TextureType::Albedo));
 
         bool result = VulkanRHI::get()->descriptorFactoryBegin()
-                .bindBuffers(0, 1, &uniformBuffer->getDescriptorBufferInfo(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
-                .bindImages(1, 1, &imageInfo, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-                .build(descriptorSet);
+            .bindBuffers(0, 1, &uniformBuffer->getDescriptorBufferInfo(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
+            .bindImages(1, 1, &imageInfo, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+            .build(descriptorSet);
         VT_CORE_ASSERT(result, "Fail to set up vulkan descriptor set");
     }
 
@@ -76,7 +76,7 @@ namespace VT
     void StaticMeshComponent::onRenderTick(VkCommandBuffer cmd, VkPipelineLayout pipelineLayout)
     {
         const int32_t id = 0;
-        if (cacheGPUMeshAsset)
+        if (isMeshReady)
         {
             vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
                                 &descriptorSet, 0, nullptr);

@@ -24,9 +24,11 @@ namespace VT
 
         explicit AssimpModelProcess(const std::filesystem::path &inPath);
 
-        void processNode(aiNode *node, const aiScene *scene);
+//        void processNode(aiNode *node, const aiScene *scene);                 // Old method
 
-        StaticMeshSubMesh processMesh(aiMesh *mesh, const aiScene *scene);
+//        StaticMeshSubMesh processMesh(aiMesh *mesh, const aiScene *scene);    // Old method
+
+        void processMesh(aiMesh *mesh, const aiScene *scene);                   // New method
     };
 }
 
