@@ -69,6 +69,8 @@ namespace VT
                 VT_CORE_CRITICAL("Fail to allocate vulkan buffer memory");
             }
 
+            m_size = memRequirements.size;
+
             if (data != nullptr)
             {
                 void *mapped;
@@ -127,7 +129,7 @@ namespace VT
             result = vmaMapMemory(VulkanRHI::VMA, m_allocation, &m_mapped);
         } else
         {
-            result = vkMapMemory(VulkanRHI::Device, m_memory, offset, size, 0, &m_mapped);
+            result = vkMapMemory(VulkanRHI::Device, m_memory, offset, m_size, 0, &m_mapped);    // TODO: fix
         }
         return result;
     }
