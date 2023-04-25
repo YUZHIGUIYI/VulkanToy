@@ -14,8 +14,17 @@ namespace VT
 
     namespace EngineImages
     {
-        extern std::weak_ptr<GPUImageAsset> GAoImageAsset;
-        extern const UUID GAoImageUUID;
+        extern std::weak_ptr<GPUImageAsset> GAlbedoImageAsset;
+        extern const UUID GAlbedoImageUUID;
+
+        extern std::weak_ptr<GPUImageAsset> GNormalImageAsset;
+        extern const UUID GNormalImageUUID;
+
+        extern std::weak_ptr<GPUImageAsset> GMetallicImageAsset;
+        extern const UUID GMetallicImageUUID;
+
+        extern std::weak_ptr<GPUImageAsset> GRoughnessImageAsset;
+        extern const UUID GRoughnessImageUUID;
     }
 
     class ImageAssetBin final : public AssetBinInterface
@@ -155,18 +164,18 @@ namespace VT
                         VulkanBuffer &stageBuffer) override;
 
         // Build load task from file path - slow
-        static Ref<TextureRawDataLoadTask> buildFromPath(
-                const std::filesystem::path &path,
-                const UUID &uuid,
-                VkFormat format,
-                TextureType textureType);
+        static void buildFromPath(
+            const std::filesystem::path &path,
+            const UUID &uuid,
+            VkFormat format,
+            TextureType textureType);
 
         // Build load task from same value
         static Ref<TextureRawDataLoadTask> buildFlatTexture(
-                const std::string &name,
-                const UUID &uuid,
-                const glm::uvec4 &color,
-                const glm::uvec3 &size = { 1u, 1u, 1u },
-                VkFormat format = VK_FORMAT_R8G8B8A8_UNORM);
+            const std::string &name,
+            const UUID &uuid,
+            const glm::uvec4 &color,
+            const glm::uvec3 &size = { 1u, 1u, 1u },
+            VkFormat format = VK_FORMAT_R8G8B8A8_UNORM);
     };
 }

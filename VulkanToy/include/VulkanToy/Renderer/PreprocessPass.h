@@ -39,7 +39,10 @@ namespace VT
         void init();
         void release();
 
-        Ref<VulkanImage> getEnvironmentCube() { return m_environmentCube; }
+        Ref<VulkanImage> getEnvironmentCube() const { return m_environmentCube; }
+        Ref<VulkanImage> getIrradianceCube() const { return m_irradianceCube; }
+        Ref<VulkanImage> getPrefilteredCube() const { return m_prefilteredCube; }
+        Ref<VulkanImage> getBRDFLUT() const { return m_lutBRDF; }
     };
 
     using PreprocessPassHandle = Singleton<PreprocessPass>;

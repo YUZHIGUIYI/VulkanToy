@@ -14,7 +14,11 @@ layout(push_constant) uniform PushConsts {
 
 void main()
 {
-    vec3 N = normalize(inPos);
+    // TODO: Flip local position outside
+    vec3 localPos = inPos;
+    localPos.y *= -1.0;
+
+    vec3 N = normalize(localPos);
     vec3 up = vec3(0.0, 1.0, 0.0);
     vec3 right = normalize(cross(up, N));
     up = cross(N, right);

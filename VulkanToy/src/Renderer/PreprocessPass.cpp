@@ -602,7 +602,6 @@ namespace VT
         pipelineCI.pDynamicState = &dynamicState;
         pipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
         pipelineCI.pStages = shaderStages.data();
-        pipelineCI.renderPass = renderPass;
         pipelineCI.pVertexInputState = StaticMeshVertex::getPipelineVertexInputState(
                 { VertexComponent::Position, VertexComponent::Normal, VertexComponent::UV });
 
@@ -676,7 +675,8 @@ namespace VT
                     vkCmdBeginRenderPass(cmd, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
                     // Update shader push constant block
-                    pushBlock.mvp = glm::perspective(para, 1.0f, 0.1f, 512.0f) * matrices[f];
+                    glm::mat4 projection = glm::perspective(para, 1.0f, 0.1f, 512.0f);
+                    pushBlock.mvp = projection * matrices[f];
 
                     vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushBlock), &pushBlock);
 
@@ -765,7 +765,6 @@ namespace VT
         samplerCI.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
         samplerCI.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
         samplerCI.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        samplerCI.mipLodBias = 0.0f;
         samplerCI.minLod = 0.0f;
         samplerCI.maxLod = static_cast<float>(numMips);
         samplerCI.maxAnisotropy = 1.0f;
@@ -895,7 +894,7 @@ namespace VT
         {
             glm::mat4 mvp;
             float roughness;
-            uint32_t numSamples = 32u;
+            uint32_t numSamples = 1024u;
         } pushBlock;
 
         VkPipelineLayout pipelineLayout{};
@@ -934,7 +933,6 @@ namespace VT
         pipelineCI.pDynamicState = &dynamicState;
         pipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
         pipelineCI.pStages = shaderStages.data();
-        pipelineCI.renderPass = renderPass;
         pipelineCI.pVertexInputState = StaticMeshVertex::getPipelineVertexInputState(
                 { VertexComponent::Position, VertexComponent::Normal, VertexComponent::UV });
 
@@ -1009,7 +1007,8 @@ namespace VT
                     vkCmdBeginRenderPass(cmd, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
                     // Update shader push constant block
-                    pushBlock.mvp = glm::perspective(para, 1.0f, 0.1f, 512.0f) * matrices[f];
+                    glm::mat4 projection = glm::perspective(para, 1.0f, 0.1f, 512.0f);
+                    pushBlock.mvp = projection * matrices[f];
 
                     vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushBlock), &pushBlock);
 

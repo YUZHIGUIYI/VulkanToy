@@ -10,8 +10,17 @@
 
 namespace VT
 {
-    const UUID EngineImages::GAoImageUUID = "56y55c7e-9132-7d7y-a98f-a0f4f4d1fd53";
-    std::weak_ptr<GPUImageAsset>  EngineImages::GAoImageAsset = {};
+    const UUID EngineImages::GAlbedoImageUUID = "5albedo01-xb71-8d2y-a98f-a0f4fdje20gg";
+    std::weak_ptr<GPUImageAsset>  EngineImages::GAlbedoImageAsset = {};
+
+    const UUID EngineImages::GNormalImageUUID = "3normal75-0002-7d7y-a98f-a0f4f4d1fd53";
+    std::weak_ptr<GPUImageAsset>  EngineImages::GNormalImageAsset = {};
+
+    const UUID EngineImages::GMetallicImageUUID = "5metallic82-0853-7d7y-a98f-a0fpio4d1fdid";
+    std::weak_ptr<GPUImageAsset>  EngineImages::GMetallicImageAsset = {};
+
+    const UUID EngineImages::GRoughnessImageUUID = "9roughness-u612-7d7y-a98f-a0f4f4d1fd53";
+    std::weak_ptr<GPUImageAsset>  EngineImages::GRoughnessImageAsset = {};
 
     static std::string getRuntimeUniqueImageAssetName(const std::string &in)
     {
@@ -139,25 +148,34 @@ namespace VT
         imageAssetGPU->finishUpload(commandBuffer, Initializers::initBasicImageSubresource());
     }
 
-    Ref<TextureRawDataLoadTask> TextureRawDataLoadTask::buildFromPath(const std::filesystem::path &path,
-                                                                        const UUID &uuid, VkFormat format, TextureType textureType)
+    void TextureRawDataLoadTask::buildFromPath(const std::filesystem::path &path,
+                                                const UUID &uuid, VkFormat format, TextureType textureType)
     {
         int32_t texWidth, texHeight, texChannels;
-        stbi_uc* pixels = stbi_load(path.string().c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        stbi_uc* pixels = nullptr;
+        if (textureType != TextureType::Metallic && textureType != TextureType::Roughness)
+        {
+            pixels = stbi_load(path.string().c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+            texChannels = 4;
+        } else
+        {
+            pixels = stbi_load(path.string().c_str(), &texWidth, &texHeight, &texChannels, STBI_grey);
+            texChannels = 1;
+        }
 
         if (!pixels)
         {
             VT_CORE_ERROR("Fail to load image '{0}'", path.string());
-            return nullptr;
+            return;
         }
 
         if (TextureManager::Get()->isAssetExist(uuid))
         {
             VT_CORE_WARN("Persistent asset has existed, do not register again");
-            return nullptr;
+            return;
         }
 
-        VkDeviceSize imageSize = texWidth * texHeight * GAssetTextureChannels;
+        VkDeviceSize imageSize = texWidth * texHeight * texChannels;
         // uint32_t mipLevel = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
         uint32_t mipLevel = 1;
 
@@ -206,44 +224,28 @@ namespace VT
         // Release staging buffer
         stagingBuffer->release();
         // Create image view
-        subresourceRange.levelCount = 1;
         newImageAsset->getVulkanImage()->createView(subresourceRange, VK_IMAGE_VIEW_TYPE_2D);
         // Create sampler if not exists
-        if (textureType == TextureType::Albedo && !VulkanRHI::SamplerManager->isContain(static_cast<uint8_t>(textureType)))
+        if (!VulkanRHI::SamplerManager->isContain(static_cast<uint8_t>(textureType)))
         {
             VkPhysicalDeviceProperties properties = VulkanRHI::get()->getPhysicalDeviceProperties();
-            VkSamplerCreateInfo samplerInfo = Initializers::initLinearRepeatMipPointSamplerInfo();
-            samplerInfo.anisotropyEnable = VK_TRUE;
-            samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
-            samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-            samplerInfo.unnormalizedCoordinates = VK_FALSE;
-            samplerInfo.compareEnable = VK_FALSE;
-            samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
 
-            samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-            samplerInfo.minLod = 0.0f;
-            samplerInfo.maxLod = static_cast<float>(mipLevel);
-            samplerInfo.mipLodBias = 0.0f;
+            VkSamplerCreateInfo samplerCI = Initializers::initSamplerLinear();
+            samplerCI.compareOp = VK_COMPARE_OP_NEVER;
+            samplerCI.mipLodBias = 0.0f;
+            samplerCI.minLod = 0.0f;
+            samplerCI.maxLod = static_cast<float>(mipLevel);
+            samplerCI.anisotropyEnable = VK_TRUE;
+            samplerCI.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+            samplerCI.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+            samplerCI.unnormalizedCoordinates = VK_FALSE;
 
-            VulkanRHI::SamplerManager->createSampler(samplerInfo, static_cast<uint8_t>(textureType));
+            VulkanRHI::SamplerManager->createSampler(samplerCI, static_cast<uint8_t>(textureType));
         }
         // Insert GPU asset
         TextureManager::Get()->insertGPUAsset(uuid, newImageAsset);
 
-        // Create new task
-        Ref<TextureRawDataLoadTask> newTask = CreateRef<TextureRawDataLoadTask>();
-        newTask->imageAssetGPU = newImageAsset;
-
-        // Prepare to upload dat
-        newTask->cacheRawData.resize(texWidth * texHeight * 1 * GAssetTextureChannels);
-        std::memcpy(newTask->cacheRawData.data(), pixels, newTask->cacheRawData.size());
-
-        // NOTE: GPU memory align, which make small texture size min is 512 bytes,
-        //       and may size no equal, but at least one thing is guarantee, that is cache data size must less than upload size
-        VT_CORE_ASSERT(newTask->cacheRawData.size() <= newTask->getUploadSize(), "cache data size must less than upload size");
-
         stbi_image_free(pixels);
-        return newTask;
     }
 
     Ref<TextureRawDataLoadTask> TextureRawDataLoadTask::buildFlatTexture(const std::string &name, const UUID &uuid,

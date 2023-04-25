@@ -118,7 +118,13 @@ namespace VT
         // TODO: add other uniforms and samplers
         std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings{
             Initializers::initDescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0),
-            Initializers::initDescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1)
+            Initializers::initDescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1),
+            Initializers::initDescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 2),
+            Initializers::initDescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 3),
+            Initializers::initDescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 4),
+            Initializers::initDescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 5),
+            Initializers::initDescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 6),
+            Initializers::initDescriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 7)
         };
 
         VkDescriptorSetLayoutCreateInfo descriptorLayout = Initializers::initDescriptorSetLayoutCreateInfo(setLayoutBindings);
@@ -173,7 +179,7 @@ namespace VT
         pipelineCI.pDepthStencilState = &depthStencilState;
         pipelineCI.pDynamicState = &dynamicState;
         pipelineCI.pVertexInputState = StaticMeshVertex::getPipelineVertexInputState(
-                { VertexComponent::Position, VertexComponent::Normal, VertexComponent::UV });
+                { VertexComponent::Position, VertexComponent::Normal, VertexComponent::UV, VertexComponent::Tangent, VertexComponent::Bitangent });
 
         std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages{};
         auto shaderModuleVert = VulkanRHI::ShaderManager->getShader("PBRTexture.vert.spv");

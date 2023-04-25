@@ -19,9 +19,8 @@ namespace VT
             cacheGPUMeshAsset = EngineMeshes::GSkyBoxRef.lock();
             VT_CORE_INFO("Loading skybox mesh asset successfully");
 
-//            auto imageAssetTemp = TextureManager::Get()->getImage(EngineImages::GAoImageUUID);
-//            cacheCubeMapAsset = imageAssetTemp->getVulkanImage();
             cacheCubeMapAsset = PreprocessPassHandle::Get()->getEnvironmentCube();
+            // cacheCubeMapAsset = PreprocessPassHandle::Get()->getIrradianceCube();
 
             setupDescriptors();
 
@@ -37,6 +36,7 @@ namespace VT
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         imageInfo.imageView = cacheCubeMapAsset->getView();
         imageInfo.sampler = VulkanRHI::SamplerManager->getSampler(static_cast<uint8_t>(TextureType::Cube));
+        // imageInfo.sampler = VulkanRHI::SamplerManager->getSampler(static_cast<uint8_t>(TextureType::Irradiance));
 
         bool result = VulkanRHI::get()->descriptorFactoryBegin()
             .bindBuffers(0, 1, &uniformBuffer->getDescriptorBufferInfo(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
@@ -65,7 +65,6 @@ namespace VT
                                     &descriptorSet, 0, nullptr);
 
             glm::mat4 model = glm::mat4{ glm::mat3{ SceneCameraHandle::Get()->getViewMatrix() } };
-            model[1][1] *= -1.0f;
             vkCmdPushConstants(cmd, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &model);
 
             const VkDeviceSize offsets[1] = {0};

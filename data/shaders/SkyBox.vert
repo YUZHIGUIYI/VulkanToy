@@ -26,5 +26,8 @@ out gl_PerVertex
 void main()
 {
     outUVW = inPos;
-    gl_Position = ubo.projection * pushConsts.model * vec4(inPos.xyz, 1.0);
+    mat4 projection = ubo.projection;
+    projection[1][1] *= -1.0;
+    vec4 clipPos = projection * pushConsts.model * vec4(inPos.xyz, 1.0);
+    gl_Position = clipPos.xyww;
 }

@@ -130,17 +130,19 @@ namespace VT
             // Tangent and bitangent
             if (mesh->HasTangentsAndBitangents())
             {
-                glm::vec4 tangentVec = { mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z, 1.0f };
-
-                glm::vec3 vector = { mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z };
-
-                glm::vec3 bitangent = { mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z };
-
-                // Tangent sign process
-                tangentVec.w = glm::sign(
-                        glm::dot(glm::normalize(bitangent), glm::normalize(glm::cross(vertex.normal, vector))));
-
-                vertex.tangent = tangentVec;
+//                glm::vec4 tangentVec = { mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z, 1.0f };
+//
+//                glm::vec3 vector = { mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z };
+//
+//                glm::vec3 bitangent = { mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z };
+//
+//                // Tangent sign process
+//                tangentVec.w = glm::sign(
+//                        glm::dot(glm::normalize(bitangent), glm::normalize(glm::cross(vertex.normal, vector))));
+//
+//                vertex.tangent = tangentVec;
+                vertex.tangent = { mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z };
+                vertex.bitangent = { mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z };
             }
 
             m_vertices.push_back(vertex);

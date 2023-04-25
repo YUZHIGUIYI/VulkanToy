@@ -33,7 +33,10 @@ namespace VT
                         .format = VK_FORMAT_R32G32_SFLOAT, .offset = static_cast<uint32_t>(offsetof(StaticMeshVertex, uv)) };
             case VertexComponent::Tangent:
                 return VkVertexInputAttributeDescription{ .location = location, .binding = binding,
-                        .format = VK_FORMAT_R32G32B32A32_SFLOAT, .offset = static_cast<uint32_t>(offsetof(StaticMeshVertex, tangent)) };
+                        .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = static_cast<uint32_t>(offsetof(StaticMeshVertex, tangent)) };
+            case VertexComponent::Bitangent:
+                return VkVertexInputAttributeDescription{ .location = location, .binding = binding,
+                        .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = static_cast<uint32_t>(offsetof(StaticMeshVertex, bitangent)) };
             default:
                 return VkVertexInputAttributeDescription{};
         }
