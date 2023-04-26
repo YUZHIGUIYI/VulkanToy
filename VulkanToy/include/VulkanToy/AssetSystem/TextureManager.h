@@ -62,21 +62,14 @@ namespace VT
     {
     private:
         Ref<VulkanImage> m_image = nullptr;
-        uint32_t m_bindlessIndex = ~0;
 
     public:
-        GPUImageAsset(GPUImageAsset* fallback, bool isPersistent, VkFormat format,
-                        const std::string &name, uint32_t mipmapCount,
-                        uint32_t width, uint32_t height, uint32_t depth);
+        GPUImageAsset(const std::string &name, bool isPersistent, VkFormat format,
+            uint32_t layers, uint32_t levels, uint32_t width, uint32_t height);
 
-        virtual ~GPUImageAsset();
+        ~GPUImageAsset() override;
 
         void release();
-
-        uint32_t getBindlessIndex()
-        {
-            return getReadyAsset()->m_bindlessIndex;
-        }
 
         // Prepare image layout when start to upload
         void prepareToUpload(CommandBufferBase &cmd, VkImageSubresourceRange range);
@@ -92,16 +85,6 @@ namespace VT
         auto& getImage() { return m_image->getImage(); }
 
         Ref<VulkanImage> getVulkanImage() const { return m_image; }
-
-        GPUImageAsset* getReadyAsset()
-        {
-            if (isAssetLoading())
-            {
-                VT_CORE_ASSERT(m_fallback, "Loading asset must exit one fallback");
-                return dynamic_cast<GPUImageAsset *>(m_fallback);
-            }
-            return this;
-        }
     };
 
     class TextureContext final

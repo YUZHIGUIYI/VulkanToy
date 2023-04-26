@@ -30,8 +30,8 @@ namespace VT
         [[nodiscard]] const VkBuffer& getBuffer() const { return m_buffer; }
         [[nodiscard]] VkDeviceMemory getMemory() const { return m_memory; }
         [[nodiscard]] VkDeviceSize getMemorySize() const { return m_size; }
+        [[nodiscard]] const char* getName() const { return m_name.c_str(); }
         [[nodiscard]] bool isHeap() const { return m_isHeap; }
-        [[nodiscard]] const char* getName() const { return m_name.c_str();}
 
         void setName(const std::string &newName);
 
@@ -73,6 +73,9 @@ namespace VT
         static Ref<VulkanBuffer> createRTScratchBuffer(const char *name, VkDeviceSize size);
     };
 
+    // Image memory barrier
+    struct ImageMemoryBarrier;
+
     // Image
     struct VulkanImage
     {
@@ -82,13 +85,9 @@ namespace VT
         VkImageView m_imageView = VK_NULL_HANDLE;
         VmaAllocation m_allocation = nullptr;
         VkDeviceMemory m_memory = VK_NULL_HANDLE;
-        VkDeviceSize m_size = 0;
         VkImageCreateInfo m_createInfo{};
 
-        std::vector<uint32_t> m_ownerQueueFamilies;
-        std::vector<VkImageLayout> m_layouts;
-        std::unordered_map<size_t, VkImageView> m_cacheImageViews{};
-
+        VkDeviceSize m_size = 0;
         bool m_isHeap = false;
 
     public:
@@ -103,22 +102,12 @@ namespace VT
 
         void release();
 
-        [[nodiscard]] size_t getSubresourceIndex(uint32_t layerIndex, uint32_t mipLevel) const
-        {
-            VT_CORE_ASSERT((layerIndex < m_createInfo.arrayLayers) && (mipLevel < m_createInfo.mipLevels), "Fail to get subresource index");
-            return layerIndex * m_createInfo.mipLevels + mipLevel;
-        }
-
-        [[nodiscard]] VkImageLayout getCurrentLayout(uint32_t layerIndex, uint32_t mipLevel) const
-        {
-            return m_layouts.at(getSubresourceIndex(layerIndex, mipLevel));
-        }
-
         void setName(const std::string &newName);
 
         // Get view, and try to create if no exist
         void createView(VkImageSubresourceRange range, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D);
-        VkImageView getView(VkImageSubresourceRange range = VkImageSubresourceRange{}, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D);
+        VkImageView getView(VkImageSubresourceRange range = VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS },
+                            VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D);
 
         // Use graphics queue family
         void transitionLayout(VkCommandBuffer commandBuffer,
@@ -147,6 +136,21 @@ namespace VT
         static Ref<VulkanImage> create(const char *name,
             const VkImageCreateInfo &createInfo,
             VkMemoryPropertyFlags propertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        static void transitionImageLayout(const ImageMemoryBarrier &imageMemoryBarrier, VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+    };
+
+    struct ImageMemoryBarrier
+    {
+        VkImageMemoryBarrier barrier{};
+
+        ImageMemoryBarrier(VkImage image, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkImageLayout oldLayout, VkImageLayout newLayout);
+
+        ImageMemoryBarrier& aspectMask(VkImageAspectFlags aspectMask);
+
+        ImageMemoryBarrier& mipLevels(uint32_t baseMipLevel, uint32_t levelCount = VK_REMAINING_MIP_LEVELS);
+
+        ImageMemoryBarrier& arrayLayers(uint32_t baseArrayLayer, uint32_t layerCount = VK_REMAINING_ARRAY_LAYERS);
     };
 }
 

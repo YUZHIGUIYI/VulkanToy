@@ -12,7 +12,7 @@ namespace VT
     const UUID EngineMeshes::GBoxUUID = "12a68c4e-8352-4d97-a914-a0f4f4d1fd28";
     const UUID EngineMeshes::GSphereUUID = "45f0d878-6d3f-11ed-a1eb-0242ac120002";
     const UUID EngineMeshes::GCerberusUUID = "76f0v327-6d3e-41ui-n92j-9733lk128178";
-    const UUID EngineMeshes::GSkyBoxUUID = "90nhgo521-xxki-ilfg-kh43-0ui6lk163e3";
+    const UUID EngineMeshes::GSkyBoxUUID = "90nhgo521-pxki-ilfg-kh43-0ui6lk163e3";
 
     std::weak_ptr<GPUMeshAsset> EngineMeshes::GBoxPtrRef = {};
     std::weak_ptr<GPUMeshAsset> EngineMeshes::GSpherePtrRef = {};
@@ -39,40 +39,11 @@ namespace VT
         return 0;
     }
 
-    // Separate
-    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
-                        VkBuffer &buffer, VkDeviceMemory &bufferMemory)
-    {
-        VkBufferCreateInfo bufferInfo{};
-        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        bufferInfo.size = size;
-        bufferInfo.usage = usage;
-        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-        if (vkCreateBuffer(VulkanRHI::Device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
-            throw std::runtime_error("Failed to create buffer!");
-
-        VkMemoryRequirements memRequirements;
-        vkGetBufferMemoryRequirements(VulkanRHI::Device, buffer, &memRequirements);
-
-        VkMemoryAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        allocInfo.allocationSize = memRequirements.size;
-        allocInfo.memoryTypeIndex = VulkanRHI::get()->findMemoryType(memRequirements.memoryTypeBits, properties);
-
-        if (vkAllocateMemory(VulkanRHI::Device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
-        {
-            VT_CORE_CRITICAL("Fail to allocate buffer memory");
-        }
-
-        vkBindBufferMemory(VulkanRHI::Device, buffer, bufferMemory, 0);
-    }
-
     // Immediately build GPU mesh asset
-    GPUMeshAsset::GPUMeshAsset(GPUMeshAsset *fallback, bool isPersistent, const std::string &name,
-        VkDeviceSize vertexSize, size_t singleVertexSize, VkDeviceSize indexSize,
-        VkIndexType indexType)
-    : GPUAssetInterface(fallback, isPersistent), m_name(name)
+    GPUMeshAsset::GPUMeshAsset(const std::string &name, bool isPersistent,
+                                VkDeviceSize vertexSize, size_t singleVertexSize,
+                                VkDeviceSize indexSize, VkIndexType indexType)
+    : GPUAssetInterface(isPersistent), m_name(name)
     {
         VT_CORE_ASSERT(m_vertexBuffer == nullptr, "Ensure that GPU mesh asset initialized only once");
         VT_CORE_ASSERT(m_indexBuffer == nullptr, "Ensure that GPU mesh asset initialized only once");
@@ -103,8 +74,8 @@ namespace VT
         m_vertexFloat32Count = uint32_t(vertexSize) / sizeof(float);
     }
 
-    GPUMeshAsset::GPUMeshAsset(GPUMeshAsset *fallback, bool isPersistent, const std::string &name)
-    : GPUAssetInterface(fallback, isPersistent), m_name(name)
+    GPUMeshAsset::GPUMeshAsset(const std::string &name, bool isPersistent)
+    : GPUAssetInterface(isPersistent), m_name(name)
     {
 
     }
@@ -113,14 +84,7 @@ namespace VT
     {
         if (!m_isPersistent)
         {
-            if (m_vertexBufferBindlessIndex != ~0)
-            {
-                // TODO
-            }
-            if (m_indexBufferBindlessIndex != ~0)
-            {
-                // TODO
-            }
+            // TODO
         }
 
         m_vertexBuffer.reset();
@@ -135,8 +99,7 @@ namespace VT
 
     void GPUMeshAsset::prepareToUpload()
     {
-        VT_CORE_ASSERT(m_vertexBufferBindlessIndex == ~0, "Prepare upload");
-        VT_CORE_ASSERT(m_indexBufferBindlessIndex == ~0, "Prepare upload");
+        // TODO
     }
 
     void GPUMeshAsset::finishUpload()
@@ -156,7 +119,6 @@ namespace VT
         write.descriptorCount = 1;
         write.dstArrayElement = 0;  // TODO: fix
         vkUpdateDescriptorSets(VulkanRHI::Device, 1, &write, 0, nullptr);
-        m_vertexBufferBindlessIndex = write.dstArrayElement;
 
         // TODO: separate
         VkDescriptorBufferInfo bufferInfo2{};
@@ -173,10 +135,6 @@ namespace VT
         write.descriptorCount = 1;
         write.dstArrayElement = 0;  // TODO: fix
         vkUpdateDescriptorSets(VulkanRHI::Device, 1, &write2, 0, nullptr);
-        m_indexBufferBindlessIndex = write2.dstArrayElement;
-
-        VT_CORE_ASSERT(m_vertexBufferBindlessIndex != ~0, "Fail to upload")
-        VT_CORE_ASSERT(m_indexBufferBindlessIndex != ~0, "Fail to upload");
     }
 
     void MeshContext::init()
@@ -248,11 +206,9 @@ namespace VT
         std::memcpy((void *)(newTask->cacheIndexData.data()), (void *)indices, indexSize);
 
         // TODO: check
-        GPUMeshAsset* fallback = nullptr;
         auto newAsset = CreateRef<GPUMeshAsset>(
-                fallback,
-                isPersistent,
                 name,
+                isPersistent,
                 vertexSize,
                 singleVertexSize,
                 indexSize,
@@ -263,10 +219,18 @@ namespace VT
         return newTask;
     }
 
-    Ref<StaticMeshRawDataLoadTask> StaticMeshRawDataLoadTask::buildFromPath(const std::string &name,
-                                                                            const std::filesystem::path &path,
+    void StaticMeshRawDataLoadTask::buildFromPath(const std::string &name, const std::filesystem::path &path,
                                                                             const UUID &uuid, bool isPersistent)
     {
+        if (isPersistent)
+        {
+            if (MeshManager::Get()->isAssetExist(uuid))
+            {
+                VT_CORE_WARN("In file '{0}', in line '{1}', persistent mesh asset has exist, do not register again", __FILE__, __LINE__);
+                return;
+            }
+        }
+
         Assimp::Importer importer;
         const aiScene* scene = importer.ReadFile(path.string(),
             aiProcessPreset_TargetRealtime_Fast | aiProcess_FlipUVs | aiProcess_GenBoundingBoxes |
@@ -274,105 +238,62 @@ namespace VT
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
         {
             VT_CORE_ERROR("Error::Assimp::{0}", importer.GetErrorString());
-            return nullptr;
+            return;
         }
 
         AssimpModelProcess processor{ path.parent_path() };
-        // processor.processNode(scene->mRootNode, scene);        // Old method
-        processor.processMesh(scene->mMeshes[0], scene);    // New method
+        processor.processMesh(scene->mMeshes[0], scene);
 
-        if (isPersistent)
-        {
-            if (MeshManager::Get()->isAssetExist(uuid))
-            {
-                VT_CORE_WARN("In file '{0}', in line '{1}', persistent asset has exist, do not register again", __FILE__, __LINE__);
-                return nullptr;
-            }
-        }
-
-        auto newTask = CreateRef<StaticMeshRawDataLoadTask>();
-        newTask->cacheVertexData.resize(processor.m_vertices.size() * sizeof(processor.m_vertices[0]));
-        newTask->cacheIndexData.resize(processor.m_indices.size() * sizeof(processor.m_indices[0]));
-
-        std::memcpy((void *)(newTask->cacheVertexData.data()), (void *)processor.m_vertices.data(), newTask->cacheVertexData.size());
-        std::memcpy((void *)(newTask->cacheIndexData.data()), (void *)processor.m_indices.data(), newTask->cacheIndexData.size());
-
-        // TODO: separate
-        // Staging buffer vertex
+        // Create staging vertex and index buffers, and copy vertex and index data from model
         VkDeviceSize vertexBufferSize = sizeof(StaticMeshVertex) * processor.m_vertices.size();
-        VkBuffer stagingVertexBuffer;
-        VkDeviceMemory stagingVertexBufferMemory;
-        createBuffer(vertexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                        stagingVertexBuffer, stagingVertexBufferMemory);
-        // Staging buffer index
         VkDeviceSize indexBufferSize = sizeof(VertexIndexType) * processor.m_indices.size();
-        VkBuffer stagingIndexBuffer;
-        VkDeviceMemory stagingIndexBufferMemory;
-        createBuffer(indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                        stagingIndexBuffer, stagingIndexBufferMemory);
 
-        void* vertexData;
-        vkMapMemory(VulkanRHI::Device, stagingVertexBufferMemory, 0, vertexBufferSize, 0, &vertexData);
-        std::memcpy(vertexData, processor.m_vertices.data(), (size_t)vertexBufferSize);
-        vkUnmapMemory(VulkanRHI::Device, stagingVertexBufferMemory);
+        auto stagingVertexBuffer = VulkanBuffer::create2("Staging vertex buffer",
+                                                    VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                                                    VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,
+                                                    vertexBufferSize);
+        auto stagingIndexBuffer = VulkanBuffer::create2("Staging index buffer",
+                                                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                                                        VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,
+                                                        indexBufferSize);
 
-        void* indexData;
-        vkMapMemory(VulkanRHI::Device, stagingIndexBufferMemory, 0, indexBufferSize, 0, &indexData);
-        std::memcpy(indexData, processor.m_indices.data(), (size_t)indexBufferSize);
-        vkUnmapMemory(VulkanRHI::Device, stagingIndexBufferMemory);
+        RHICheck(stagingVertexBuffer->map());
+        stagingVertexBuffer->copyData(processor.m_vertices.data(), static_cast<size_t>(vertexBufferSize));
+        stagingVertexBuffer->unmap();
+        RHICheck(stagingIndexBuffer->map());
+        stagingIndexBuffer->copyData(processor.m_indices.data(), static_cast<size_t>(indexBufferSize));
+        stagingIndexBuffer->unmap();
 
-        // TODO: check
-        GPUMeshAsset* fallback = nullptr;
+        // Create mesh asset
         VT_CORE_ASSERT(sizeof(VertexIndexType) == 4, "Currently VertexIndexType must be uint32_t");
-        auto newAsset = CreateRef<GPUMeshAsset>(
-                fallback,
-                isPersistent,
+        auto newMeshAsset = CreateRef<GPUMeshAsset>(
                 name,
+                isPersistent,
                 processor.m_vertices.size() * sizeof(processor.m_vertices[0]),
                 sizeof(processor.m_vertices[0]),
                 processor.m_indices.size() * sizeof(processor.m_indices[0]),
                 VK_INDEX_TYPE_UINT32);
 
-        // TODO: separate
+        // Copy vertex and index buffers into mesh asset
+        VulkanRHI::executeImmediatelyMajorGraphics([stagingVertexBuffer, stagingIndexBuffer, newMeshAsset] (VkCommandBuffer cmd)
         {
-            VkCommandBuffer commandBuffer = VulkanRHI::get()->createMajorGraphicsCommandBuffer();
-            VkCommandBufferBeginInfo beginInfo{};
-            beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-            beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-            vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-            // Vertex and index
             VkBufferCopy  copyRegionVertex{};
-            copyRegionVertex.size = vertexBufferSize;
-            vkCmdCopyBuffer(commandBuffer, stagingVertexBuffer, newAsset->getVertexBuffer(), 1, &copyRegionVertex);
+            copyRegionVertex.size = stagingVertexBuffer->getMemorySize();
+            vkCmdCopyBuffer(cmd, stagingVertexBuffer->getBuffer(), newMeshAsset->getVertexBuffer(), 1, &copyRegionVertex);
 
             VkBufferCopy copyRegionIndex{};
-            copyRegionIndex.size = indexBufferSize;
-            vkCmdCopyBuffer(commandBuffer, stagingIndexBuffer, newAsset->getIndexBuffer(), 1, &copyRegionIndex);
+            copyRegionIndex.size = stagingIndexBuffer->getMemorySize();
+            vkCmdCopyBuffer(cmd, stagingIndexBuffer->getBuffer(), newMeshAsset->getIndexBuffer(), 1, &copyRegionIndex);
+        });
 
-            vkEndCommandBuffer(commandBuffer);
-            VkSubmitInfo submitInfo{};
-            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &commandBuffer;
+        // Release staging vertex and index buffers
+        stagingVertexBuffer->release();
+        stagingIndexBuffer->release();
 
-            vkQueueSubmit(VulkanRHI::get()->getMajorGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
-            vkQueueWaitIdle(VulkanRHI::get()->getMajorGraphicsQueue());
-
-            vkFreeCommandBuffers(VulkanRHI::Device, VulkanRHI::get()->getMajorGraphicsCommandPool(), 1, &commandBuffer);
-        }
-
-        {
-            vkDestroyBuffer(VulkanRHI::Device, stagingVertexBuffer, nullptr);
-            vkFreeMemory(VulkanRHI::Device, stagingVertexBufferMemory, nullptr);
-            vkDestroyBuffer(VulkanRHI::Device, stagingIndexBuffer, nullptr);
-            vkFreeMemory(VulkanRHI::Device, stagingIndexBufferMemory, nullptr);
-        }
-
-        MeshManager::Get()->insertGPUAsset(uuid, newAsset);
-        newTask->meshAssetGPU = newAsset;
-
-        return newTask;
+        // Insert GPU mesh asset
+        MeshManager::Get()->insertGPUAsset(uuid, newMeshAsset);
     }
 }
 

@@ -36,24 +36,24 @@ namespace VT
     void AssetSystem::engineAssetInit()
     {
         // Engine mesh upload
-        auto GEngineMeshBoxLoad = StaticMeshRawDataLoadTask::buildFromPath(
+        StaticMeshRawDataLoadTask::buildFromPath(
                 "EngineMeshBox",
                 "../data/meshes/Box.obj",
                 EngineMeshes::GBoxUUID,
                 true);
-        auto GEngineMeshSphereLoad = StaticMeshRawDataLoadTask::buildFromPath(
+        StaticMeshRawDataLoadTask::buildFromPath(
                 "EngineMeshSphere",
                 "../data/meshes/Sphere.obj",
                 EngineMeshes::GSphereUUID,
                 true);
 
-        auto GEngineMeshCerberusLoad = StaticMeshRawDataLoadTask::buildFromPath(
+        StaticMeshRawDataLoadTask::buildFromPath(
                 "EngineMeshCerberus",
                 "../data/meshes/Cerberus.fbx",
                 EngineMeshes::GCerberusUUID,
                 true);
 
-        auto GEngineMeshSkyboxLoad = StaticMeshRawDataLoadTask::buildFromPath(
+        StaticMeshRawDataLoadTask::buildFromPath(
                 "EngineMeshSkybox",
                 "../data/meshes/Skybox.obj",
                 EngineMeshes::GSkyBoxUUID,

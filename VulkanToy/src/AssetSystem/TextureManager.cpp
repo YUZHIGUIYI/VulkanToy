@@ -16,7 +16,7 @@ namespace VT
     const UUID EngineImages::GNormalImageUUID = "3normal75-0002-7d7y-a98f-a0f4f4d1fd53";
     std::weak_ptr<GPUImageAsset>  EngineImages::GNormalImageAsset = {};
 
-    const UUID EngineImages::GMetallicImageUUID = "5metallic82-0853-7d7y-a98f-a0fpio4d1fdid";
+    const UUID EngineImages::GMetallicImageUUID = "5metallic82-0853-7d7y-q21-a0fpi91fdid";
     std::weak_ptr<GPUImageAsset>  EngineImages::GMetallicImageAsset = {};
 
     const UUID EngineImages::GRoughnessImageUUID = "9roughness-u612-7d7y-a98f-a0f4f4d1fd53";
@@ -46,26 +46,24 @@ namespace VT
         }
     }
 
-    GPUImageAsset::GPUImageAsset(GPUImageAsset *fallback, bool isPersistent, VkFormat format, const std::string &name,
-                                uint32_t mipmapCount, uint32_t width, uint32_t height, uint32_t depth)
-    : GPUAssetInterface(fallback, isPersistent)
+    GPUImageAsset::GPUImageAsset(const std::string &name, bool isPersistent, VkFormat format,
+                                uint32_t layers, uint32_t levels, uint32_t width, uint32_t height)
+    : GPUAssetInterface(isPersistent)
     {
         VT_CORE_ASSERT(m_image == nullptr, "Ensure image asset only init once");
 
         VkImageCreateInfo imageCreateInfo{};
         imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        imageCreateInfo.flags = {};
+        imageCreateInfo.flags = (layers == 6) ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
         imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
         imageCreateInfo.format = format;
-        imageCreateInfo.extent.width = width;
-        imageCreateInfo.extent.height = height;
-        imageCreateInfo.extent.depth = depth;
-        imageCreateInfo.arrayLayers = 1;
-        imageCreateInfo.mipLevels = mipmapCount;
+        imageCreateInfo.extent = { width, height, 1 };
+        imageCreateInfo.arrayLayers = layers;
+        imageCreateInfo.mipLevels = levels;
         imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
         imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
         imageCreateInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-        if (mipmapCount > 1)
+        if (levels > 1)
         {
             imageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
         }
@@ -73,9 +71,9 @@ namespace VT
         imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
         m_image = VulkanImage::create(
-            getRuntimeUniqueImageAssetName(name).c_str(),
-            imageCreateInfo,
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+                getRuntimeUniqueImageAssetName(name).c_str(),
+                imageCreateInfo,
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
 
     GPUImageAsset::~GPUImageAsset() noexcept
@@ -101,8 +99,6 @@ namespace VT
     {
         // TODO: check
         m_image->transitionLayout(cmd.cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, range);
-        //
-
     }
 
     void TextureContext::init()
@@ -148,9 +144,14 @@ namespace VT
         imageAssetGPU->finishUpload(commandBuffer, Initializers::initBasicImageSubresource());
     }
 
-    void TextureRawDataLoadTask::buildFromPath(const std::filesystem::path &path,
-                                                const UUID &uuid, VkFormat format, TextureType textureType)
+    void TextureRawDataLoadTask::buildFromPath(const std::filesystem::path &path, const UUID &uuid, VkFormat format, TextureType textureType)
     {
+        if (TextureManager::Get()->isAssetExist(uuid))
+        {
+            VT_CORE_WARN("Persistent asset has existed, do not register again");
+            return;
+        }
+
         int32_t texWidth, texHeight, texChannels;
         stbi_uc* pixels = nullptr;
         if (textureType != TextureType::Metallic && textureType != TextureType::Roughness)
@@ -169,15 +170,8 @@ namespace VT
             return;
         }
 
-        if (TextureManager::Get()->isAssetExist(uuid))
-        {
-            VT_CORE_WARN("Persistent asset has existed, do not register again");
-            return;
-        }
-
         VkDeviceSize imageSize = texWidth * texHeight * texChannels;
-        // uint32_t mipLevel = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
-        uint32_t mipLevel = 1;
+        uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
 
         // Staging buffer
         auto stagingBuffer = VulkanBuffer::create2(
@@ -192,65 +186,69 @@ namespace VT
 
         // Create image buffer
         auto newImageAsset = CreateRef<GPUImageAsset>(
-                nullptr,
+                path.stem().string(),
                 true,
                 format,
-                path.stem().string(),
-                mipLevel,
+                1,
+                mipLevels,
                 texWidth,
-                texHeight,
-                1);
-        // Transition image layout
+                texHeight);
+        // Create image view
         VkImageSubresourceRange subresourceRange{};
         subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         subresourceRange.baseMipLevel = 0;
-        subresourceRange.levelCount = mipLevel;
+        subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
         subresourceRange.baseArrayLayer = 0;
-        subresourceRange.layerCount = 1;
-        newImageAsset->getVulkanImage()->transitionLayoutImmediately(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
-        // Copy staging buffer to image
-        newImageAsset->getVulkanImage()->copyFromStagingBuffer(stagingBuffer->getBuffer(), texWidth, texHeight);
-        // Generate mipmaps
-        if (mipLevel > 1)
-        {
-            // TODO: fix
-            newImageAsset->getVulkanImage()->generateMipmaps();
-        } else
-        {
-            // TODO: fix
-            // Otherwise use shader read only layout
-            newImageAsset->getVulkanImage()->transitionLayoutImmediately(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subresourceRange);
-        }
-        // Release staging buffer
-        stagingBuffer->release();
-        // Create image view
+        subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
         newImageAsset->getVulkanImage()->createView(subresourceRange, VK_IMAGE_VIEW_TYPE_2D);
         // Create sampler if not exists
         if (!VulkanRHI::SamplerManager->isContain(static_cast<uint8_t>(textureType)))
         {
             VkPhysicalDeviceProperties properties = VulkanRHI::get()->getPhysicalDeviceProperties();
-
             VkSamplerCreateInfo samplerCI = Initializers::initSamplerLinear();
             samplerCI.compareOp = VK_COMPARE_OP_NEVER;
             samplerCI.mipLodBias = 0.0f;
             samplerCI.minLod = 0.0f;
-            samplerCI.maxLod = static_cast<float>(mipLevel);
+            samplerCI.maxLod = static_cast<float>(mipLevels);
             samplerCI.anisotropyEnable = VK_TRUE;
             samplerCI.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
             samplerCI.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
             samplerCI.unnormalizedCoordinates = VK_FALSE;
-
             VulkanRHI::SamplerManager->createSampler(samplerCI, static_cast<uint8_t>(textureType));
         }
-        // Insert GPU asset
-        TextureManager::Get()->insertGPUAsset(uuid, newImageAsset);
+        // Transition image layout
+        {
+            const auto barrier = ImageMemoryBarrier{ newImageAsset->getImage(), 0, VK_ACCESS_TRANSFER_WRITE_BIT,
+                                                            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL }.mipLevels(0, 1);
+            VulkanImage::transitionImageLayout(barrier, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+        }
 
+        // Copy staging buffer to image
+        newImageAsset->getVulkanImage()->copyFromStagingBuffer(stagingBuffer->getBuffer(), texWidth, texHeight);
+        // Generate mipmaps, otherwise transition image layout only
+        if (mipLevels > 1)
+        {
+            const auto barrier = ImageMemoryBarrier{newImageAsset->getImage(), VK_ACCESS_TRANSFER_WRITE_BIT, 0,
+                                                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL}.mipLevels(0, 1);
+            VulkanImage::transitionImageLayout(barrier, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+
+            newImageAsset->getVulkanImage()->generateMipmaps();
+        } else
+        {
+            const auto barrier = ImageMemoryBarrier{ newImageAsset->getImage(), VK_ACCESS_TRANSFER_WRITE_BIT, 0,
+                                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL }.mipLevels(0, 1);
+            VulkanImage::transitionImageLayout(barrier, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+        }
+        // Release staging buffer
+        stagingBuffer->release();
+        // Insert GPU image asset
+        TextureManager::Get()->insertGPUAsset(uuid, newImageAsset);
+        // Free pixels resource
         stbi_image_free(pixels);
     }
 
     Ref<TextureRawDataLoadTask> TextureRawDataLoadTask::buildFlatTexture(const std::string &name, const UUID &uuid,
-                                                                        const glm::uvec4 &color,
-                                                                        const glm::uvec3 &size, VkFormat format)
+                                                                        const glm::uvec4 &color, const glm::uvec3 &size, VkFormat format)
     {
         if (TextureManager::Get()->isAssetExist(uuid))
         {
@@ -259,10 +257,9 @@ namespace VT
         }
 
         auto newAsset = CreateRef<GPUImageAsset>(
-                nullptr,
+                name,
                 true,
                 format,
-                name,
                 1,
                 size.x,
                 size.y,
@@ -290,27 +287,6 @@ namespace VT
         return newTask;
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
