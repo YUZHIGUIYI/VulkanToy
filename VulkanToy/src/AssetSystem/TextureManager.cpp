@@ -29,23 +29,6 @@ namespace VT
         return "VulkanToyImageAssetId:" + std::to_string(GRuntimeId) + in;
     }
 
-    // TODO: fix this mipmap function
-    void ImageAssetBin::buildMipmapDataRGBA8(float cutOff)
-    {
-        float alphaCoverMip0 = 1.0f;
-        m_mipmapData.resize(8); // TODO: real
-
-        // TODO: look whether it is good when convert to linear space do mipmap
-
-
-        for (size_t mip = 0; mip < m_mipmapData.size(); ++mip)
-        {
-            auto& dstMipData = m_mipmapData[mip];
-
-            uint32_t dstWidth = 0;
-        }
-    }
-
     GPUImageAsset::GPUImageAsset(const std::string &name, bool isPersistent, VkFormat format,
                                 uint32_t layers, uint32_t levels, uint32_t width, uint32_t height)
     : GPUAssetInterface(isPersistent)

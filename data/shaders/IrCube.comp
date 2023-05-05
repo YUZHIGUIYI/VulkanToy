@@ -1,4 +1,4 @@
-#version 460 core
+#version 450 core
 // Physically Based Rendering
 // Computes diffuse irradiance cubemap convolution for image-based lighting.
 // Uses quasi Monte Carlo sampling with Hammersley sequence.

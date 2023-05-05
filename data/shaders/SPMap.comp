@@ -1,4 +1,4 @@
-#version 460 core
+#version 450 core
 // Physically Based Rendering
 // Pre-filters environment cube map using GGX NDF importance sampling.
 // Part of specular IBL split-sum approximation.

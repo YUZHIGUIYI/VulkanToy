@@ -39,9 +39,6 @@ namespace VT
         ImageAssetBin(const std::string &name)
             : AssetBinInterface(buildUUID(), name) {}
 
-        // TODO: finish
-        void buildMipmapDataRGBA8(float cutOff);
-
         [[nodiscard]] AssetType getAssetType() const override
         {
             return AssetType::Texture;
