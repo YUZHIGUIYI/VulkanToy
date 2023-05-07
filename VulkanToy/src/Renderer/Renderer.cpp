@@ -5,25 +5,18 @@
 #include <VulkanToy/Renderer/Renderer.h>
 #include <VulkanToy/VulkanRHI/VulkanRHI.h>
 #include <VulkanToy/AssetSystem/MeshMisc.h>
-#include <VulkanToy/Renderer/PreprocessPass.h>
 
 namespace VT
 {
     Renderer::Renderer()
     {
+        m_passCollector.emplace_back(CreateRef<PreprocessPass>());
         m_passCollector.emplace_back(CreateRef<SkyboxPass>());
         m_passCollector.emplace_back(CreateRef<PBRPass>());
     }
 
-    Renderer::~Renderer()
-    {
-
-    }
-
     void Renderer::init()
     {
-        PreprocessPassHandle::Get()->init();
-
         setupDepthStencil();
         setupRenderPass();
         setupFrameBuffers();
@@ -57,12 +50,11 @@ namespace VT
         // Pass collector
         for (auto& passInterface : m_passCollector)
         {
-            std::visit([] (auto&& pass) {
+            std::visit([] (auto&& pass)
+            {
                 pass->release();
             }, passInterface);
         }
-        // Preprocess pass
-        PreprocessPassHandle::Get()->release();
     }
 
     void Renderer::tick(const RuntimeModuleTickData &tickData)
@@ -106,7 +98,8 @@ namespace VT
         // Pass render
         for (auto&& passInterface : m_passCollector)
         {
-            std::visit([currentCmd] (auto&& pass) {
+            std::visit([currentCmd] (auto&& pass)
+            {
                 pass->onRenderTick(currentCmd);
             }, passInterface);
         }
@@ -303,7 +296,8 @@ namespace VT
     {
         for (auto&& passInterface : m_passCollector)
         {
-            std::visit([this] (auto&& pass) {
+            std::visit([this] (auto&& pass)
+            {
                 pass->init(m_renderPass);
             }, passInterface);
         }

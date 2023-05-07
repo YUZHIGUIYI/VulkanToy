@@ -30,7 +30,7 @@ vec3 getSamplingVector()
     return normalize(ret);
 }
 
-void main(void)
+void main()
 {
     vec3 v = getSamplingVector();
 

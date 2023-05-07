@@ -143,19 +143,17 @@ namespace VT
                         CommandBufferBase &commandBuffer,
                         VulkanBuffer &stageBuffer) override;
 
-        // Build load task from file path - slow
+        // Build load task from file path - store in Texture Manager
         static void buildFromPath(
             const std::filesystem::path &path,
             const UUID &uuid,
             VkFormat format,
             TextureType textureType);
 
-        // Build load task from same value
-        static Ref<TextureRawDataLoadTask> buildFlatTexture(
-            const std::string &name,
-            const UUID &uuid,
-            const glm::uvec4 &color,
-            const glm::uvec3 &size = { 1u, 1u, 1u },
-            VkFormat format = VK_FORMAT_R8G8B8A8_UNORM);
+        // Build load task from file path - staging
+        static Ref<TextureRawDataLoadTask> buildFromPath2(
+            const std::filesystem::path &path,
+            VkFormat format,
+            TextureType textureType);
     };
 }

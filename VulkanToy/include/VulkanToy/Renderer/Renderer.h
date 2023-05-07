@@ -28,7 +28,6 @@ namespace VT
 
     public:
         Renderer();
-        ~Renderer();
 
         void init();
         void release();

@@ -5,8 +5,9 @@
 #include <VulkanToy/AssetSystem/TextureManager.h>
 #include <VulkanToy/VulkanRHI/VulkanRHI.h>
 
+#include <VulkanToy/AssetSystem/ImageProcess.h>
+
 #include <stb_image.h>
-#include <stb_image_resize.h>
 
 namespace VT
 {
@@ -74,14 +75,12 @@ namespace VT
 
     void GPUImageAsset::prepareToUpload(CommandBufferBase &cmd, VkImageSubresourceRange range)
     {
-        // TODO: check
-        m_image->transitionLayout(cmd.cmd, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, range);
+
     }
 
     void GPUImageAsset::finishUpload(CommandBufferBase &cmd, VkImageSubresourceRange range)
     {
-        // TODO: check
-        m_image->transitionLayout(cmd.cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, range);
+
     }
 
     void TextureContext::init()
@@ -135,26 +134,18 @@ namespace VT
             return;
         }
 
-        int32_t texWidth, texHeight, texChannels;
-        stbi_uc* pixels = nullptr;
-        if (textureType != TextureType::Metallic && textureType != TextureType::Roughness)
-        {
-            pixels = stbi_load(path.string().c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-            texChannels = 4;
-        } else
-        {
-            pixels = stbi_load(path.string().c_str(), &texWidth, &texHeight, &texChannels, STBI_grey);
-            texChannels = 1;
-        }
-
-        if (!pixels)
+        ImageProcess imageProcess{ path.string().c_str(), textureType };
+        if (!imageProcess.getPixels())
         {
             VT_CORE_ERROR("Fail to load image '{0}'", path.string());
             return;
         }
 
-        VkDeviceSize imageSize = texWidth * texHeight * texChannels;
+        VkDeviceSize imageSize = imageProcess.getImageSize();
+        int32_t texWidth = imageProcess.getWidth();
+        int32_t texHeight = imageProcess.getHeight();
         uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
+        if (textureType == TextureType::HDR) mipLevels = 1;
 
         // Staging buffer
         auto stagingBuffer = VulkanBuffer::create2(
@@ -164,7 +155,7 @@ namespace VT
                 VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,
                 imageSize);
         RHICheck(stagingBuffer->map());
-        stagingBuffer->copyData(pixels, static_cast<size_t>(imageSize));
+        stagingBuffer->copyData(imageProcess.getPixels(), static_cast<size_t>(imageSize));
         stagingBuffer->unmap();
 
         // Create image buffer
@@ -192,7 +183,7 @@ namespace VT
             samplerCI.compareOp = VK_COMPARE_OP_NEVER;
             samplerCI.mipLodBias = 0.0f;
             samplerCI.minLod = 0.0f;
-            samplerCI.maxLod = static_cast<float>(mipLevels);
+            samplerCI.maxLod = FLT_MAX;     // static_cast<float>(mipLevels)
             samplerCI.anisotropyEnable = VK_TRUE;
             samplerCI.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
             samplerCI.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
@@ -205,7 +196,6 @@ namespace VT
                                                             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL }.mipLevels(0, 1);
             VulkanImage::transitionImageLayout(barrier, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
         }
-
         // Copy staging buffer to image
         newImageAsset->getVulkanImage()->copyFromStagingBuffer(stagingBuffer->getBuffer(), texWidth, texHeight);
         // Generate mipmaps, otherwise transition image layout only
@@ -226,46 +216,81 @@ namespace VT
         stagingBuffer->release();
         // Insert GPU image asset
         TextureManager::Get()->insertGPUAsset(uuid, newImageAsset);
-        // Free pixels resource
-        stbi_image_free(pixels);
     }
 
-    Ref<TextureRawDataLoadTask> TextureRawDataLoadTask::buildFlatTexture(const std::string &name, const UUID &uuid,
-                                                                        const glm::uvec4 &color, const glm::uvec3 &size, VkFormat format)
+    Ref<TextureRawDataLoadTask> TextureRawDataLoadTask::buildFromPath2(const std::filesystem::path &path,
+                                                                        VkFormat format, TextureType textureType)
     {
-        if (TextureManager::Get()->isAssetExist(uuid))
+        ImageProcess imageProcess{ path.string().c_str(), textureType };
+
+        if (!imageProcess.getPixels())
         {
-            VT_CORE_WARN("Persistent asset has existed, do not register again");
+            VT_CORE_ERROR("Fail to load image '{0}'", path.string());
             return nullptr;
         }
 
-        auto newAsset = CreateRef<GPUImageAsset>(
-                name,
+        // Create new task
+        Ref<TextureRawDataLoadTask> newTask = CreateRef<TextureRawDataLoadTask>();
+
+        VkDeviceSize imageSize = imageProcess.getImageSize();
+        int32_t texWidth = imageProcess.getWidth();
+        int32_t texHeight = imageProcess.getHeight();
+        uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
+        if (textureType == TextureType::HDR) mipLevels = 1;
+
+        // Staging buffer
+        auto stagingBuffer = VulkanBuffer::create2(
+                "Staging buffer",
+                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,
+                imageSize);
+        RHICheck(stagingBuffer->map());
+        stagingBuffer->copyData(imageProcess.getPixels(), static_cast<size_t>(imageSize));
+        stagingBuffer->unmap();
+
+        // Create image buffer
+        newTask->imageAssetGPU = CreateRef<GPUImageAsset>(
+                path.stem().string(),
                 true,
                 format,
                 1,
-                size.x,
-                size.y,
-                size.z);
-        TextureManager::Get()->insertGPUAsset(uuid, newAsset);
-
-        // Create new task
-        Ref<TextureRawDataLoadTask> newTask = CreateRef<TextureRawDataLoadTask>();
-        newTask->imageAssetGPU = newAsset;
-
-        // Prepare to upload data
-        newTask->cacheRawData.resize(size.x * size.y * size.z * GAssetTextureChannels);
-        for (size_t i = 0; i < newTask->cacheRawData.size(); i += GAssetTextureChannels)
+                mipLevels,
+                texWidth,
+                texHeight);
+        auto newImageAsset = newTask->imageAssetGPU;
+        // Create image view
+        VkImageSubresourceRange subresourceRange{};
+        subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        subresourceRange.baseMipLevel = 0;
+        subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+        subresourceRange.baseArrayLayer = 0;
+        subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+        newImageAsset->getVulkanImage()->createView(subresourceRange, VK_IMAGE_VIEW_TYPE_2D);
+        // Transition image layout
         {
-            newTask->cacheRawData[i + 0] = uint8_t(color.x);
-            newTask->cacheRawData[i + 1] = uint8_t(color.y);
-            newTask->cacheRawData[i + 2] = uint8_t(color.z);
-            newTask->cacheRawData[i + 3] = uint8_t(color.w);
+            const auto barrier = ImageMemoryBarrier{ newImageAsset->getImage(), 0, VK_ACCESS_TRANSFER_WRITE_BIT,
+                                                        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL }.mipLevels(0, 1);
+            VulkanImage::transitionImageLayout(barrier, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
         }
+        // Copy staging buffer to image
+        newImageAsset->getVulkanImage()->copyFromStagingBuffer(stagingBuffer->getBuffer(), texWidth, texHeight);
+        // Generate mipmaps, otherwise transition image layout only
+        if (mipLevels > 1)
+        {
+            const auto barrier = ImageMemoryBarrier{newImageAsset->getImage(), VK_ACCESS_TRANSFER_WRITE_BIT, 0,
+                                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL}.mipLevels(0, 1);
+            VulkanImage::transitionImageLayout(barrier, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
 
-        // NOTE: GPU memory align, which make small texture size min is 512 bytes,
-        //       and may size no equal, but at least one thing is guarantee, that is cache data size must less than upload size
-        VT_CORE_ASSERT(newTask->cacheRawData.size() <= newTask->getUploadSize(), "cache data size must less than upload size");
+            newImageAsset->getVulkanImage()->generateMipmaps();
+        } else
+        {
+            const auto barrier = ImageMemoryBarrier{ newImageAsset->getImage(), VK_ACCESS_TRANSFER_WRITE_BIT, 0,
+                                                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL }.mipLevels(0, 1);
+            VulkanImage::transitionImageLayout(barrier, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+        }
+        // Release staging buffer
+        stagingBuffer->release();
 
         return newTask;
     }

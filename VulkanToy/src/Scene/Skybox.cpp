@@ -3,40 +3,35 @@
 //
 
 #include <VulkanToy/Scene/Skybox.h>
-#include <VulkanToy/AssetSystem/TextureManager.h>
 #include <VulkanToy/VulkanRHI/VulkanRHI.h>
 #include <VulkanToy/Scene/Scene.h>
 #include <VulkanToy/Renderer/SceneCamera.h>
-#include <VulkanToy/Renderer/PreprocessPass.h>
+#include <VulkanToy/AssetSystem/MaterialManager.h>
 
 namespace VT
 {
     void Skybox::init()
     {
-        // TODO: add cube map
         if (EngineMeshes::GSkyBoxRef.lock())
         {
             cacheGPUMeshAsset = EngineMeshes::GSkyBoxRef.lock();
             VT_CORE_INFO("Loading skybox mesh asset successfully");
 
-            cacheCubeMapAsset = PreprocessPassHandle::Get()->getEnvironmentCube();
-            // cacheCubeMapAsset = PreprocessPassHandle::Get()->getIrradianceCube();
-
             setupDescriptors();
 
             isMeshReady = true;
             isMeshReplace = true;
+        } else
+        {
+            VT_CORE_CRITICAL("Ensure import skybox mesh asset before rendering");
         }
     }
 
     void Skybox::setupDescriptors()
     {
         auto uniformBuffer = SceneHandle::Get()->getUniformBuffer();
-        VkDescriptorImageInfo imageInfo{};
-        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo.imageView = cacheCubeMapAsset->getView();
-        imageInfo.sampler = VulkanRHI::SamplerManager->getSampler(static_cast<uint8_t>(TextureType::Cube));
-        // imageInfo.sampler = VulkanRHI::SamplerManager->getSampler(static_cast<uint8_t>(TextureType::Irradiance));
+        VkDescriptorImageInfo imageInfo{ VulkanRHI::SamplerManager->getSampler(static_cast<uint8_t>(TextureType::Cube)),
+                                            SkyboxMaterial::skyboxTexture->getView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
 
         bool result = VulkanRHI::get()->descriptorFactoryBegin()
             .bindBuffers(0, 1, &uniformBuffer->getDescriptorBufferInfo(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)

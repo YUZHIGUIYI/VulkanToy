@@ -102,32 +102,14 @@ namespace VT
 
         void release();
 
-        void setName(const std::string &newName);
-
         // Get view, and try to create if no exist
+        static VkImageView createView(const Ref<VulkanImage>& vulkanImage, VkImageSubresourceRange range);
+
         void createView(VkImageSubresourceRange range, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D);
         VkImageView getView(VkImageSubresourceRange range = VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS },
                             VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D);
 
-        // Use graphics queue family
-        void transitionLayout(VkCommandBuffer commandBuffer,
-            VkImageLayout oldLayout,
-            VkImageLayout newLayout,
-            VkImageSubresourceRange range);
-        
-        void transitionLayout(VkCommandBuffer commandBuffer,
-            uint32_t newQueueFamily,
-            VkImageLayout oldLayout,
-            VkImageLayout newLayout,
-            VkImageSubresourceRange range);
-
-        void transitionLayout(VkImageLayout oldLayout, VkImageLayout newLayout, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask,
-                                VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkImageSubresourceRange range);
-
-        // Transition on major graphics
-        void transitionLayoutImmediately(VkImageLayout oldLayout, VkImageLayout newLayout, VkImageSubresourceRange range);
-
-        // Copy buffer to image
+        // Copy staging buffer to image
         void copyFromStagingBuffer(VkBuffer stagingBuffer, uint32_t width, uint32_t height);
 
         // Generate mipmap
@@ -136,6 +118,9 @@ namespace VT
         static Ref<VulkanImage> create(const char *name,
             const VkImageCreateInfo &createInfo,
             VkMemoryPropertyFlags propertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        static Ref<VulkanImage> create(uint32_t width, uint32_t height, uint32_t layers, VkFormat format,
+                                        uint32_t levels = 0, VkImageUsageFlags additionalUsage = 0, const std::string &name = "Temp");
 
         static void transitionImageLayout(const ImageMemoryBarrier &imageMemoryBarrier, VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
     };
@@ -153,13 +138,6 @@ namespace VT
         ImageMemoryBarrier& arrayLayers(uint32_t baseArrayLayer, uint32_t layerCount = VK_REMAINING_ARRAY_LAYERS);
     };
 }
-
-
-
-
-
-
-
 
 
 

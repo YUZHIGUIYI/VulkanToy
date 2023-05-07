@@ -1,10 +1,10 @@
-#version 460
+#version 450
 
 layout (location = 0) in vec3 inPos;
 layout (location = 1) in vec3 inNormal;
 layout (location = 2) in vec2 inUV;
 
-layout (binding = 0) uniform UBO
+layout (set = 0, binding = 0) uniform UBO
 {
     mat4 projection;
     mat4 view;
@@ -26,8 +26,6 @@ out gl_PerVertex
 void main()
 {
     outUVW = inPos;
-    mat4 projection = ubo.projection;
-    projection[1][1] *= -1.0;
-    vec4 clipPos = projection * pushConsts.model * vec4(inPos.xyz, 1.0);
+    vec4 clipPos = ubo.projection * pushConsts.model * vec4(inPos.xyz, 1.0);
     gl_Position = clipPos.xyww;
 }

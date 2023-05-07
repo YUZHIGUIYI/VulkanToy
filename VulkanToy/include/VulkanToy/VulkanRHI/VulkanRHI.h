@@ -128,6 +128,10 @@ namespace VT
 
         DescriptorFactory descriptorFactoryBegin();
 
+        void updateDescriptorSet(VkDescriptorSet &dstDescriptorSet, uint32_t dstBinding, VkDescriptorType descriptorType, const std::vector<VkDescriptorImageInfo> &descriptors) const;
+
+        void updateDescriptorSet(VkDescriptorSet &dstDescriptorSet, uint32_t dstBinding, VkDescriptorType descriptorType, const std::vector<VkDescriptorBufferInfo> &descriptors) const;
+
         // Other
         VkPipelineLayout createPipelineLayout(const VkPipelineLayoutCreateInfo& info);
 

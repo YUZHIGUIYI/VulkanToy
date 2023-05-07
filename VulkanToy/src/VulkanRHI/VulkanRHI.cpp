@@ -691,6 +691,34 @@ namespace VT
         return DescriptorFactory::begin(&m_descriptorPoolCache);
     }
 
+    void VulkanContext::updateDescriptorSet(VkDescriptorSet &dstDescriptorSet, uint32_t dstBinding,
+                                            VkDescriptorType descriptorType,
+                                            const std::vector<VkDescriptorImageInfo> &descriptors) const
+    {
+        VkWriteDescriptorSet writeDescriptorSet{};
+        writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writeDescriptorSet.dstSet = dstDescriptorSet;
+        writeDescriptorSet.dstBinding = dstBinding;
+        writeDescriptorSet.descriptorType = descriptorType;
+        writeDescriptorSet.descriptorCount = static_cast<uint32_t>(descriptors.size());
+        writeDescriptorSet.pImageInfo = descriptors.data();
+        vkUpdateDescriptorSets(m_device.logicalDevice, 1, &writeDescriptorSet, 0, nullptr);
+    }
+
+    void VulkanContext::updateDescriptorSet(VkDescriptorSet &dstDescriptorSet, uint32_t dstBinding,
+                                            VkDescriptorType descriptorType,
+                                            const std::vector<VkDescriptorBufferInfo> &descriptors) const
+    {
+        VkWriteDescriptorSet writeDescriptorSet{};
+        writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writeDescriptorSet.dstSet = dstDescriptorSet;
+        writeDescriptorSet.dstBinding = dstBinding;
+        writeDescriptorSet.descriptorType = descriptorType;
+        writeDescriptorSet.descriptorCount = static_cast<uint32_t>(descriptors.size());
+        writeDescriptorSet.pBufferInfo = descriptors.data();
+        vkUpdateDescriptorSets(m_device.logicalDevice, 1, &writeDescriptorSet, 0, nullptr);
+    }
+
     VkPipelineLayout VulkanContext::createPipelineLayout(const VkPipelineLayoutCreateInfo &info)
     {
         VkPipelineLayout pipelineLayout;

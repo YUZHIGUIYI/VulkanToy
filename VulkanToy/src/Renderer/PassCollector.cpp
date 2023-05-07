@@ -5,6 +5,7 @@
 #include <VulkanToy/Renderer/PassCollector.h>
 #include <VulkanToy/VulkanRHI/VulkanRHI.h>
 #include <VulkanToy/Scene/Scene.h>
+#include <VulkanToy/AssetSystem/AssetCommon.h>
 
 namespace VT
 {
@@ -27,10 +28,10 @@ namespace VT
                 VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
 
         VkPipelineRasterizationStateCreateInfo rasterizationState = Initializers::initPipelineRasterizationState(
-                VK_POLYGON_MODE_FILL, VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+                VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 
         VkPipelineColorBlendAttachmentState blendAttachmentState = Initializers::initPipelineColorBlendAttachmentState(
-                0xf, VK_FALSE);
+                VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT, VK_FALSE);   // 0xf
 
         VkPipelineColorBlendStateCreateInfo colorBlendState = Initializers::initPipelineColorBlendState(
                 1, &blendAttachmentState);

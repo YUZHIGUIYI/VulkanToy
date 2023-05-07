@@ -11,41 +11,35 @@ namespace VT
     class PreprocessPass final
     {
     private:
-        Ref<VulkanImage> m_environmentCube = nullptr;
-        Ref<VulkanImage> m_lutBRDF = nullptr;
-        Ref<VulkanImage> m_irradianceCube = nullptr;
-        Ref<VulkanImage> m_prefilteredCube = nullptr;
-        VkSampler m_environmentCubeSampler = VK_NULL_HANDLE;
-        VkSampler m_lutBRDFSampler = VK_NULL_HANDLE;
-        VkSampler m_irradianceCubeSampler = VK_NULL_HANDLE;
-        VkSampler m_prefilteredCubeSampler = VK_NULL_HANDLE;
+        VkDescriptorSetLayout m_computeDescriptorSetLayout = VK_NULL_HANDLE;
+        VkDescriptorSet m_computeDescriptorSet = VK_NULL_HANDLE;
+
+        VkPipelineLayout m_computePipelineLayout = VK_NULL_HANDLE;
+
+        VkSampler m_computeSampler = VK_NULL_HANDLE;
+
+        // Environment map (with pre-filtered mip chain)
+        Ref<VulkanImage> m_envTexture = nullptr;
+        // Irradiance map
+        Ref<VulkanImage> m_irmapTexture = nullptr;
+        // 2D BRDF LUT for split-sum approximation
+        Ref<VulkanImage> m_spBRDF_LUT = nullptr;
 
     private:
-        void setupTextures();
-        void createSampler();
-
-        void generateBRDFLUT();
-        void generateIrradianceCube();
-        void generatePrefilteredCube();
-
-        void setupDescriptor();
-        void setupPipelineLayout();
-        void setupPipeline(const std::string &filePath, const VkSpecializationInfo *specializationInfo = nullptr);
-
-        void updateDescriptorSet(uint32_t dstBinding, VkDescriptorType descriptorType, const std::vector<VkDescriptorImageInfo> &descriptors);
+        // Create compute pipeline
+        VkPipeline createComputePipeline(const std::string &fileName, VkPipelineLayout pipelineLayout, const VkSpecializationInfo* specializationInfo = nullptr);
+        // Create common descriptor set, pipeline layout for pre-processing compute shaders and common textures for processing
+        void preprocessInit();
+        // Load and pre-process environment map
+        void preprocessEnvMap();
 
     public:
-        Ref<VulkanImage> loadFromFile(const std::string &filename);
-        void init();
+        void init(VkRenderPass renderPass);
+
         void release();
 
-        Ref<VulkanImage> getEnvironmentCube() const { return m_environmentCube; }
-        Ref<VulkanImage> getIrradianceCube() const { return m_irradianceCube; }
-        Ref<VulkanImage> getPrefilteredCube() const { return m_prefilteredCube; }
-        Ref<VulkanImage> getBRDFLUT() const { return m_lutBRDF; }
+        void onRenderTick(VkCommandBuffer cmd);
     };
-
-    using PreprocessPassHandle = Singleton<PreprocessPass>;
 }
 
 

@@ -3,6 +3,7 @@
 //
 
 #include <VulkanToy/Core/RuntimeModule.h>
+#include <VulkanToy/Renderer/PreprocessPass.h>
 
 namespace VT
 {
@@ -50,6 +51,6 @@ namespace VT
         [[nodiscard]] const VkPipelineLayout& getPipelineLayout() const { return pbrPipelineLayout; }
     };
 
-    using PassInterface = std::variant<Ref<SkyboxPass>, Ref<PBRPass>>;
+    using PassInterface = std::variant<Ref<PreprocessPass>, Ref<SkyboxPass>, Ref<PBRPass>>;
     using PassCollector = std::vector<PassInterface>;
 }

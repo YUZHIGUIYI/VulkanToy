@@ -6,7 +6,6 @@
 #include <VulkanToy/AssetSystem/MeshManager.h>
 #include <VulkanToy/AssetSystem/TextureManager.h>
 #include <VulkanToy/VulkanRHI/VulkanRHI.h>
-#include <VulkanToy/Renderer/PreprocessPass.h>
 #include <VulkanToy/Scene/Scene.h>
 
 namespace VT
@@ -31,15 +30,12 @@ namespace VT
         // Vertex data
         cacheGPUMeshAsset = MeshManager::Get()->getMesh(staticMeshUUID);
         VT_CORE_INFO("Loading mesh asset successfully");
-        // TODO: fix texture data - only ao now
-        cacheMaterialAsset = CreateRef<StandardPBRMaterial>(EngineImages::GAlbedoImageUUID, "TestMaterial");
+
+        cacheMaterialAsset = CreateRef<StandardPBRMaterial>();
         cacheMaterialAsset->albedoTexture = TextureManager::Get()->getImage(EngineImages::GAlbedoImageUUID)->getVulkanImage();
         cacheMaterialAsset->normalTexture = TextureManager::Get()->getImage(EngineImages::GNormalImageUUID)->getVulkanImage();
         cacheMaterialAsset->roughnessTexture = TextureManager::Get()->getImage(EngineImages::GRoughnessImageUUID)->getVulkanImage();
         cacheMaterialAsset->metallicTexture = TextureManager::Get()->getImage(EngineImages::GMetallicImageUUID)->getVulkanImage();
-        cacheMaterialAsset->samplerIrradiance = PreprocessPassHandle::Get()->getIrradianceCube();
-        cacheMaterialAsset->prefilteredMap = PreprocessPassHandle::Get()->getPrefilteredCube();
-        cacheMaterialAsset->samplerBRDFLUT = PreprocessPassHandle::Get()->getBRDFLUT();
 
         isMeshReplace = true;
         isMeshReady = true;
@@ -72,17 +68,17 @@ namespace VT
 
         VkDescriptorImageInfo irradianceImageInfo{};
         irradianceImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        irradianceImageInfo.imageView = cacheMaterialAsset->samplerIrradiance->getView();
+        irradianceImageInfo.imageView = StandardPBRMaterial::irradianceTexture->getView();
         irradianceImageInfo.sampler = VulkanRHI::SamplerManager->getSampler(static_cast<uint8_t>(TextureType::Irradiance));
 
         VkDescriptorImageInfo prefilteredImageInfo{};
         prefilteredImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        prefilteredImageInfo.imageView = cacheMaterialAsset->prefilteredMap->getView();
+        prefilteredImageInfo.imageView = StandardPBRMaterial::prefilteredMapTexture->getView();
         prefilteredImageInfo.sampler = VulkanRHI::SamplerManager->getSampler(static_cast<uint8_t>(TextureType::Prefiltered));
 
         VkDescriptorImageInfo BRDFLUTImageInfo{};
         BRDFLUTImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        BRDFLUTImageInfo.imageView = cacheMaterialAsset->samplerBRDFLUT->getView();
+        BRDFLUTImageInfo.imageView = StandardPBRMaterial::BRDFLUT->getView();
         BRDFLUTImageInfo.sampler = VulkanRHI::SamplerManager->getSampler(static_cast<uint8_t>(TextureType::BRDFLUT));
 
         bool result = VulkanRHI::get()->descriptorFactoryBegin()

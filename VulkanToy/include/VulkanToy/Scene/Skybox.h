@@ -13,8 +13,6 @@ namespace VT
     {
         // Cache gpu mesh asset.
         Ref<GPUMeshAsset> cacheGPUMeshAsset = nullptr;
-        // Cube map
-        Ref<VulkanImage> cacheCubeMapAsset = nullptr;
         // Descriptor set
         VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
         // Asset uuid
