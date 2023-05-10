@@ -70,6 +70,8 @@ namespace VT
         pipelineCI.pDynamicState = &dynamicState;
         pipelineCI.pVertexInputState = StaticMeshVertex::getPipelineVertexInputState(
                 { VertexComponent::Position, VertexComponent::Normal, VertexComponent::UV });
+        // TODO: multiple subpass handle
+        pipelineCI.subpass = 0;
 
         std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages{};
         auto shaderModuleVert = VulkanRHI::ShaderManager->getShader("SkyBox.vert.spv");
@@ -109,6 +111,7 @@ namespace VT
     void SkyboxPass::onRenderTick(VkCommandBuffer cmd)
     {
         // TODO: add function
+        // Draw skybox
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, skyboxPipeline);
         SceneHandle::Get()->onRenderTickSkybox(cmd, skyboxPipelineLayout);
     }
@@ -181,6 +184,8 @@ namespace VT
         pipelineCI.pDynamicState = &dynamicState;
         pipelineCI.pVertexInputState = StaticMeshVertex::getPipelineVertexInputState(
                 { VertexComponent::Position, VertexComponent::Normal, VertexComponent::UV, VertexComponent::Tangent, VertexComponent::Bitangent });
+        // TODO: multiple subpass handle
+        pipelineCI.subpass = 0;
 
         std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages{};
         auto shaderModuleVert = VulkanRHI::ShaderManager->getShader("PBRTexture.vert.spv");
@@ -219,7 +224,133 @@ namespace VT
 
     void PBRPass::onRenderTick(VkCommandBuffer cmd)
     {
+        // Draw PBR model
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pbrPipeline);
         SceneHandle::Get()->onRenderTick(cmd, pbrPipelineLayout);
+    }
+
+    // ---------------------------------------------- Tonemap ----------------------------------------------
+    void TonemapPass::setupDescriptor(const std::vector<VkDescriptorImageInfo> &descriptors)
+    {
+        // Generate descriptor set layout for tone mapping
+        const std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings{
+            { 0, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr }
+        };
+
+        VkDescriptorSetLayoutCreateInfo descriptorLayout = Initializers::initDescriptorSetLayoutCreateInfo(descriptorSetLayoutBindings);
+
+        RHICheck(vkCreateDescriptorSetLayout(VulkanRHI::Device, &descriptorLayout, nullptr, &tonemapDescriptorSetLayout));
+
+        // Allocate and update descriptor sets for tone mapping input - pre-frame
+        auto numFrames = VulkanRHI::get()->getSwapChain().imageCount;
+        tonemapDescriptorSets.resize(numFrames);
+        for (uint32_t i = 0; i < numFrames; ++i)
+        {
+            tonemapDescriptorSets[i] = VulkanRHI::get()->getDescriptorPoolCache().allocateSet(tonemapDescriptorSetLayout);
+            VulkanRHI::get()->updateDescriptorSet(tonemapDescriptorSets[i], 0, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, { descriptors[i] });
+        }
+    }
+
+    void TonemapPass::setupPipeline(VkRenderPass renderPass)
+    {
+        VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = Initializers::initPipelineInputAssemblyState(
+                VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
+
+        VkPipelineRasterizationStateCreateInfo rasterizationState = Initializers::initPipelineRasterizationState(
+                VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+
+        VkPipelineColorBlendAttachmentState blendAttachmentState = Initializers::initPipelineColorBlendAttachmentState(
+                0xf, VK_FALSE);
+
+        VkPipelineColorBlendStateCreateInfo colorBlendState = Initializers::initPipelineColorBlendState(
+                1, &blendAttachmentState);
+
+        VkPipelineViewportStateCreateInfo viewportState = Initializers::initPipelineViewportState(
+                1, 1);
+
+        VkPipelineMultisampleStateCreateInfo multisampleState = Initializers::initPipelineMultisampleState(
+                VK_SAMPLE_COUNT_1_BIT);
+
+        std::vector<VkDynamicState> dynamicStateEnables{
+                VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+        VkPipelineDynamicStateCreateInfo dynamicState = Initializers::initPipelineDynamicState(dynamicStateEnables);
+
+        VkPipelineVertexInputStateCreateInfo vertexInputState{ .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+
+        // Create pipeline layout
+        VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = Initializers::initPipelineLayout(&tonemapDescriptorSetLayout, 1);
+        pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
+        pipelineLayoutCreateInfo.pPushConstantRanges = nullptr;
+        RHICheck(vkCreatePipelineLayout(VulkanRHI::Device, &pipelineLayoutCreateInfo, nullptr, &tonemapPipelineLayout));
+
+        // Create pipeline
+        VkGraphicsPipelineCreateInfo pipelineCI = Initializers::initPipeline(tonemapPipelineLayout, renderPass);
+        pipelineCI.pInputAssemblyState = &inputAssemblyState;
+        pipelineCI.pRasterizationState = &rasterizationState;
+        pipelineCI.pColorBlendState = &colorBlendState;
+        pipelineCI.pMultisampleState = &multisampleState;
+        pipelineCI.pViewportState = &viewportState;
+        pipelineCI.pDepthStencilState = nullptr;
+        pipelineCI.pDynamicState = &dynamicState;
+        pipelineCI.pVertexInputState = &vertexInputState;
+        // TODO: multiple subpass handle
+        pipelineCI.subpass = 1;
+
+        std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages{};
+        auto shaderModuleVert = VulkanRHI::ShaderManager->getShader("Tonemap.vert.spv");
+        auto shaderModuleFrag = VulkanRHI::ShaderManager->getShader("Tonemap.frag.spv");
+        shaderStages[0] = Initializers::initPipelineShaderStage(shaderModuleVert, VK_SHADER_STAGE_VERTEX_BIT);
+        shaderStages[1] = Initializers::initPipelineShaderStage(shaderModuleFrag, VK_SHADER_STAGE_FRAGMENT_BIT);
+        pipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
+        pipelineCI.pStages = shaderStages.data();
+
+        RHICheck(vkCreateGraphicsPipelines(VulkanRHI::Device, VK_NULL_HANDLE, 1,
+                                            &pipelineCI, nullptr, &tonemapPipeline));
+        VT_CORE_INFO("Create Tone-mapping pipeline successfully");
+    }
+
+    void TonemapPass::init(VkRenderPass renderPass, const std::vector<VkDescriptorImageInfo> &descriptors)
+    {
+        setupDescriptor(descriptors);
+        setupPipeline(renderPass);
+    }
+
+    void TonemapPass::release()
+    {
+        if (tonemapDescriptorSetLayout != VK_NULL_HANDLE)
+        {
+            vkDestroyDescriptorSetLayout(VulkanRHI::Device, tonemapDescriptorSetLayout, nullptr);
+        }
+        if (tonemapPipelineLayout != VK_NULL_HANDLE)
+        {
+            vkDestroyPipelineLayout(VulkanRHI::Device, tonemapPipelineLayout, nullptr);
+        }
+        if (tonemapPipeline != VK_NULL_HANDLE)
+        {
+            vkDestroyPipeline(VulkanRHI::Device, tonemapPipeline, nullptr);
+        }
+    }
+
+    void TonemapPass::updateDescriptorSets(const std::vector<VkDescriptorImageInfo> &descriptors)
+    {
+        // Update descriptor sets for tone mapping input - pre-frame
+        auto numFrames = tonemapDescriptorSets.size();
+        for (uint32_t i = 0; i < numFrames; ++i)
+        {
+            VulkanRHI::get()->updateDescriptorSet(tonemapDescriptorSets[i], 0, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, { descriptors[i] });
+        }
+    }
+
+    void TonemapPass::onRenderTick(VkCommandBuffer cmd)
+    {
+        // Transition to tone mapping subpass
+        vkCmdNextSubpass(cmd, VK_SUBPASS_CONTENTS_INLINE);
+
+        // Draw a full screen triangle for post-processing/tone mapping
+        auto frameIndex = VulkanRHI::get()->getCurrentFrameIndex();
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, tonemapPipeline);
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, tonemapPipelineLayout, 0,
+                                1, &tonemapDescriptorSets[frameIndex], 0,nullptr);
+        vkCmdDraw(cmd, 3, 1, 0, 0);
     }
 }

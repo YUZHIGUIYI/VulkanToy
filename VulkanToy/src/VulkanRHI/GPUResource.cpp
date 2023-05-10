@@ -390,6 +390,42 @@ namespace VT
         return vulkanImage;
     }
 
+    Ref<VulkanImage> VulkanImage::create(uint32_t width, uint32_t height, uint32_t layers, uint32_t levels,
+                                            VkFormat format, uint32_t samples, VkImageUsageFlags usage, bool isColorAttachment)
+    {
+        VkImageCreateInfo imageCreateInfo{};
+        imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        imageCreateInfo.flags = (layers == 6) ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
+        imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+        imageCreateInfo.format = format;
+        imageCreateInfo.extent = { width, height, 1 };
+        imageCreateInfo.mipLevels = levels;
+        imageCreateInfo.arrayLayers = layers;
+        imageCreateInfo.samples = static_cast<VkSampleCountFlagBits>(samples);
+        imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        imageCreateInfo.usage = usage;
+        imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+        auto vulkanImage =  VulkanImage::create(
+                "Attachment", imageCreateInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D;
+        VkImageSubresourceRange subresourceRange{};
+        subresourceRange.levelCount = 1;
+        subresourceRange.layerCount = 1;
+        if (isColorAttachment)
+        {
+            subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        } else
+        {
+            subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+        }
+        vulkanImage->createView(subresourceRange, viewType);
+
+        return vulkanImage;
+    }
+
     VkImageView VulkanImage::createView(const Ref<VulkanImage>& vulkanImage, VkImageSubresourceRange range)
     {
         VkImageViewCreateInfo viewCreateInfo{};

@@ -8,39 +8,72 @@
 
 namespace VT
 {
+    void RenderTarget::release()
+    {
+        if (colorImage)
+        {
+            colorImage->release();
+            colorImage = nullptr;
+        }
+        if (depthImage)
+        {
+            depthImage->release();
+            depthImage = nullptr;
+        }
+    }
+
+    RenderTarget RenderTarget::create(uint32_t width, uint32_t height,
+                                        uint32_t samples, VkFormat colorFormat, VkFormat depthFormat)
+    {
+        RenderTarget target{};
+        target.width = width;
+        target.height = height;
+        target.colorFormat = colorFormat;
+        target.depthFormat = depthFormat;
+
+        VkImageUsageFlags colorImageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        if (samples == 1) colorImageUsage |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+        if (colorFormat != VK_FORMAT_UNDEFINED)
+        {
+            target.colorImage = VulkanImage::create(width, height, 1, 1, colorFormat, samples, colorImageUsage, true);
+        }
+        if (depthFormat != VK_FORMAT_UNDEFINED)
+        {
+            target.depthImage = VulkanImage::create(width, height, 1, 1, depthFormat, samples, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, false);
+        }
+
+        return target;
+    }
+
     Renderer::Renderer()
     {
         m_passCollector.emplace_back(CreateRef<PreprocessPass>());
         m_passCollector.emplace_back(CreateRef<SkyboxPass>());
         m_passCollector.emplace_back(CreateRef<PBRPass>());
+
+        // Tone-mapping pass
+        m_passCollector.emplace_back(CreateRef<TonemapPass>());
     }
 
     void Renderer::init()
     {
-        setupDepthStencil();
+        setupRenderTargets();
         setupRenderPass();
         setupFrameBuffers();
         setupPipelines();
 
-        VulkanRHI::get()->onAfterSwapChainRebuild.subscribe([](){
-            RendererHandle::Get()->rebuildDepthAndFramebuffers();
+        VulkanRHI::get()->onAfterSwapChainRebuild.subscribe([] ()
+        {
+            RendererHandle::Get()->rebuildRenderTargetsAndFramebuffers();
         });
     }
 
     void Renderer::release()
     {
-        // Depth stencil
-        if (m_depthStencil.image != VK_NULL_HANDLE)
+        // Render targets
+        for (auto&& renderTarget : m_renderTargets)
         {
-            vkDestroyImage(VulkanRHI::Device, m_depthStencil.image, nullptr);
-        }
-        if (m_depthStencil.imageView != VK_NULL_HANDLE)
-        {
-            vkDestroyImageView(VulkanRHI::Device, m_depthStencil.imageView, nullptr);
-        }
-        if (m_depthStencil.memory != VK_NULL_HANDLE)
-        {
-            vkFreeMemory(VulkanRHI::Device, m_depthStencil.memory, nullptr);
+            renderTarget.release();
         }
         // Frame buffers
         for (auto& frameBuffer : m_frameBuffers)
@@ -67,8 +100,10 @@ namespace VT
         // Record
         VkCommandBufferBeginInfo cmdBufInfo = Initializers::initCommandBufferBeginInfo();
 
-        VkClearValue clearValues[2];
-        clearValues[0].color = { { 0.1f, 0.1f, 0.1f, 1.0f } };
+        std::array<VkClearValue, 2> clearValues{};
+//        VkClearValue clearValues[2];
+//        clearValues[0].color = { { 0.1f, 0.1f, 0.1f, 1.0f } };
+//        clearValues[1].depthStencil = { 1.0f, 0 };
         clearValues[1].depthStencil = { 1.0f, 0 };
 
         VkRenderPassBeginInfo renderPassBeginInfo = Initializers::initRenderPassBeginInfo();
@@ -78,8 +113,8 @@ namespace VT
         auto extent = VulkanRHI::get()->getSwapChainExtent();
         renderPassBeginInfo.renderArea.extent.width = extent.width;
         renderPassBeginInfo.renderArea.extent.height = extent.height;
-        renderPassBeginInfo.clearValueCount = 2;
-        renderPassBeginInfo.pClearValues = clearValues;
+        renderPassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+        renderPassBeginInfo.pClearValues = clearValues.data();
 
         // Start target frame buffer
         renderPassBeginInfo.framebuffer = m_frameBuffers[imageIndex];
@@ -100,7 +135,11 @@ namespace VT
         {
             std::visit([currentCmd] (auto&& pass)
             {
-                pass->onRenderTick(currentCmd);
+                using T = std::decay_t<decltype(pass)>;
+                if constexpr (std::is_same_v<T, Ref<SkyboxPass>> || std::is_same_v<T, Ref<PBRPass>> || std::is_same_v<T, Ref<TonemapPass>>)
+                {
+                    pass->onRenderTick(currentCmd);
+                }
             }, passInterface);
         }
 
@@ -128,150 +167,141 @@ namespace VT
         VulkanRHI::get()->present();
     }
 
-    void Renderer::rebuildDepthAndFramebuffers()
+    void Renderer::rebuildRenderTargetsAndFramebuffers()
     {
-        if (m_depthStencil.image != VK_NULL_HANDLE)
+        for (auto&& renderTarget : m_renderTargets)
         {
-            vkDestroyImage(VulkanRHI::Device, m_depthStencil.image, nullptr);
+            renderTarget.release();
         }
-        if (m_depthStencil.imageView != VK_NULL_HANDLE)
-        {
-            vkDestroyImageView(VulkanRHI::Device, m_depthStencil.imageView, nullptr);
-        }
-        if (m_depthStencil.memory != VK_NULL_HANDLE)
-        {
-            vkFreeMemory(VulkanRHI::Device, m_depthStencil.memory, nullptr);
-        }
-        for (auto framebuffer : m_frameBuffers)
+
+        for (auto&& framebuffer : m_frameBuffers)
         {
             vkDestroyFramebuffer(VulkanRHI::Device, framebuffer, nullptr);
         }
-        m_depthStencil = {};
 
-        setupDepthStencil();
+        setupRenderTargets();
         setupFrameBuffers();
-    }
 
-    void Renderer::setupDepthStencil()
-    {
-        // TODO: replace, because it have completed in GPUResource, just call create
-        VkImageCreateInfo imageCI{};
-        imageCI.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        imageCI.imageType = VK_IMAGE_TYPE_2D;
-        imageCI.format = VulkanRHI::get()->getSupportDepthStencilFormat();
-        auto swapChainExtent = VulkanRHI::get()->getSwapChainExtent();
-        imageCI.extent = { swapChainExtent.width, swapChainExtent.height, 1 };
-        imageCI.mipLevels = 1;
-        imageCI.arrayLayers = 1;
-        imageCI.samples = VK_SAMPLE_COUNT_1_BIT;
-        imageCI.tiling = VK_IMAGE_TILING_OPTIMAL;
-        imageCI.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-
-        RHICheck(vkCreateImage(VulkanRHI::Device, &imageCI, nullptr, &m_depthStencil.image));
-        VkMemoryRequirements memReqs{};
-        vkGetImageMemoryRequirements(VulkanRHI::Device, m_depthStencil.image, &memReqs);
-
-        VkMemoryAllocateInfo memAlloc{};
-        memAlloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        memAlloc.allocationSize = memReqs.size;
-        memAlloc.memoryTypeIndex = VulkanRHI::get()->findMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        RHICheck(vkAllocateMemory(VulkanRHI::Device, &memAlloc, nullptr, &m_depthStencil.memory));
-        RHICheck(vkBindImageMemory(VulkanRHI::Device, m_depthStencil.image, m_depthStencil.memory, 0));
-
-        VkImageViewCreateInfo imageViewCI{};
-        imageViewCI.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        imageViewCI.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        imageViewCI.image = m_depthStencil.image;
-        imageViewCI.format = VulkanRHI::get()->getSupportDepthStencilFormat();
-        imageViewCI.subresourceRange.baseMipLevel = 0;
-        imageViewCI.subresourceRange.levelCount = 1;
-        imageViewCI.subresourceRange.baseArrayLayer = 0;
-        imageViewCI.subresourceRange.layerCount = 1;
-        imageViewCI.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-        // Stencil aspect should only be set on depth + stencil formats
-        if (imageViewCI.format >= VK_FORMAT_D16_UNORM_S8_UINT)
+        // Create descriptor image info for tone-mapping pass - no sampler required
+        // TODO: support MSAA later
+        auto numFrames = m_renderTargets.size();
+        std::vector<VkDescriptorImageInfo> descriptors;
+        descriptors.reserve(numFrames);
+        for (uint32_t i = 0; i < numFrames; ++i)
         {
-            imageViewCI.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+            const VkDescriptorImageInfo imageInfo{ VK_NULL_HANDLE, m_renderTargets[i].colorImage->getView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+            descriptors.push_back(imageInfo);
         }
-        vkCreateImageView(VulkanRHI::Device, &imageViewCI, nullptr, &m_depthStencil.imageView);
+
+        // Update descriptor sets for tone-mapping pass
+        for (auto&& passInterface : m_passCollector)
+        {
+            std::visit([&descriptors] (auto&& pass)
+            {
+                using T = std::decay_t<decltype(pass)>;
+                if constexpr (std::is_same_v<T, Ref<TonemapPass>>)
+                {
+                    pass->updateDescriptorSets(descriptors);
+                }
+            }, passInterface);
+        }
     }
 
-    // TODO: separate
+    void Renderer::setupRenderTargets()
+    {
+        // Create render targets - need to rebuild when resize window
+        const VkFormat colorFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+        const VkFormat depthFormat = VulkanRHI::get()->getSupportDepthStencilFormat();
+
+        auto swapChainExtent = VulkanRHI::get()->getSwapChainExtent();
+        auto numFrames = VulkanRHI::get()->getSwapChain().imageCount;
+        m_renderTargets.resize(numFrames);
+        for (uint32_t i = 0; i < numFrames; ++i)
+        {
+            m_renderTargets[i] = RenderTarget::create(swapChainExtent.width, swapChainExtent.height, 1, colorFormat, depthFormat);
+        }
+    }
+
     void Renderer::setupRenderPass()
     {
-        std::array<VkAttachmentDescription, 2> attachments{};
-        // Color attachment
-        attachments[0].format = VulkanRHI::get()->getSwapChainFormat();
-        attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
-        attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        attachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-        // Depth attachment
-        attachments[1].format = VulkanRHI::get()->getSupportDepthStencilFormat();
-        attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
-        attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        // Attachments
+        std::vector<VkAttachmentDescription> attachments{
+            // Main color attachment - 0
+            {
+                0, m_renderTargets[0].colorFormat, VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+            },
+            // Main depth-stencil attachment - 1
+            {
+                0, m_renderTargets[0].depthFormat, VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+            },
+            // Swapchain color attachment - 2
+            {
+                0, VulkanRHI::get()->getSwapChainFormat(), VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE,
+                VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+            }
+        };
 
-        VkAttachmentReference colorReference{};
-        colorReference.attachment = 0;
-        colorReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        // Main pass
+        const std::array<VkAttachmentReference, 1> mainPassColorRefs{
+            // Main color attachment - 0
+            { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL }
+        };
+        const std::array<VkAttachmentReference, 1> mainPassDepthStencilRef{
+            // Main depth-stencil attachment - 1
+            { 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL }
+        };
+        VkSubpassDescription mainPass{};
+        mainPass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        mainPass.colorAttachmentCount = static_cast<uint32_t>(mainPassColorRefs.size());
+        mainPass.pColorAttachments = mainPassColorRefs.data();
+        mainPass.pDepthStencilAttachment = mainPassDepthStencilRef.data();
 
-        VkAttachmentReference depthReference{};
-        depthReference.attachment = 1;
-        depthReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        // Tonemapping subpass
+        const std::array<VkAttachmentReference, 1> tonemapPassInputRefs{
+            // Main color attachment - 0
+            { 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL }
+        };
+        const std::array<VkAttachmentReference, 1> tonemapPassColorRefs{
+            // Swapchain color attachment - 2
+            { 2, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL }
+        };
+        VkSubpassDescription tonemapPass{};
+        tonemapPass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        tonemapPass.colorAttachmentCount = static_cast<uint32_t>(tonemapPassColorRefs.size());
+        tonemapPass.pColorAttachments = tonemapPassColorRefs.data();
+        tonemapPass.inputAttachmentCount = static_cast<uint32_t>(tonemapPassInputRefs.size());
+        tonemapPass.pInputAttachments = tonemapPassInputRefs.data();
 
-        VkSubpassDescription subpassDescription{};
-        subpassDescription.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-        subpassDescription.colorAttachmentCount = 1;
-        subpassDescription.pColorAttachments = &colorReference;
-        subpassDescription.pDepthStencilAttachment = &depthReference;
-        subpassDescription.inputAttachmentCount = 0;
-        subpassDescription.pInputAttachments = nullptr;
-        subpassDescription.preserveAttachmentCount = 0;
-        subpassDescription.pPreserveAttachments = nullptr;
-        subpassDescription.pResolveAttachments = nullptr;
+        const std::array<VkSubpassDescription, 2> subpasses{ mainPass, tonemapPass };
 
-        // Subpass dependencies for layout transitions
-        std::array<VkSubpassDependency, 2> dependencies{};
-        dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-        dependencies[0].dstSubpass = 0;
-        dependencies[0].srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-        dependencies[0].dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-        dependencies[0].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        dependencies[0].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-        dependencies[0].dependencyFlags = 0;
+        // Main -> Tonemapping dependency
+        const VkSubpassDependency mainToTonemapDependency{
+            0,
+            1,
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            VK_ACCESS_SHADER_READ_BIT,
+            VK_DEPENDENCY_BY_REGION_BIT
+        };
 
-        dependencies[1].srcSubpass = VK_SUBPASS_EXTERNAL;
-        dependencies[1].dstSubpass = 0;
-        dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        dependencies[1].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        dependencies[1].srcAccessMask = 0;
-        dependencies[1].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
-        dependencies[1].dependencyFlags = 0;
+        VkRenderPassCreateInfo createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        createInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+        createInfo.pAttachments = attachments.data();
+        createInfo.subpassCount = static_cast<uint32_t>(subpasses.size());
+        createInfo.pSubpasses = subpasses.data();
+        createInfo.dependencyCount = 1;
+        createInfo.pDependencies = &mainToTonemapDependency;
 
-        VkRenderPassCreateInfo renderPassInfo{};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-        renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-        renderPassInfo.pAttachments = attachments.data();
-        renderPassInfo.subpassCount = 1;
-        renderPassInfo.pSubpasses = &subpassDescription;
-        renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
-        renderPassInfo.pDependencies = dependencies.data();
-
-        RHICheck(vkCreateRenderPass(VulkanRHI::Device, &renderPassInfo, nullptr, &m_renderPass));
+        RHICheck(vkCreateRenderPass(VulkanRHI::Device, &createInfo, nullptr, &m_renderPass));
     }
 
     void Renderer::setupFrameBuffers()
     {
-        // Depth/Stencil attachment is the same for all frame buffers
-        // Color attachment is different
+        // Depth/Stencil attachment, color attachment is different
         VkFramebufferCreateInfo framebufferCreateInfo{};
         framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         framebufferCreateInfo.pNext = nullptr;
@@ -285,20 +315,47 @@ namespace VT
         m_frameBuffers.resize(VulkanRHI::get()->getSwapChain().imageCount);
         for (uint32_t i = 0; i < m_frameBuffers.size(); ++i)
         {
-            std::vector<VkImageView> attachments{ VulkanRHI::get()->getSwapChain().swapChainImageViews[i], m_depthStencil.imageView };
+            std::vector<VkImageView> attachments{
+                m_renderTargets[i].colorImage->getView(),
+                m_renderTargets[i].depthImage->getView(),
+                VulkanRHI::get()->getSwapChain().swapChainImageViews[i]
+            };
+
+            // TODO: consider MSAA
+
             framebufferCreateInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
             framebufferCreateInfo.pAttachments = attachments.data();
+
             RHICheck(vkCreateFramebuffer(VulkanRHI::Device, &framebufferCreateInfo, nullptr, &m_frameBuffers[i]));
         }
     }
 
     void Renderer::setupPipelines()
     {
+        // Create descriptor image info for tone-mapping pass - no sampler required
+        // TODO: support MSAA later
+        auto numFrames = m_renderTargets.size();
+        std::vector<VkDescriptorImageInfo> descriptors;
+        descriptors.reserve(numFrames);
+        for (uint32_t i = 0; i < numFrames; ++i)
+        {
+            const VkDescriptorImageInfo imageInfo{ VK_NULL_HANDLE, m_renderTargets[i].colorImage->getView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+            descriptors.push_back(imageInfo);
+        }
+
+        // Initialize passes
         for (auto&& passInterface : m_passCollector)
         {
-            std::visit([this] (auto&& pass)
+            std::visit([this, &descriptors] (auto&& pass)
             {
-                pass->init(m_renderPass);
+                using T = std::decay_t<decltype(pass)>;
+                if constexpr (std::is_same_v<T, Ref<TonemapPass>>)
+                {
+                    pass->init(m_renderPass, descriptors);
+                } else
+                {
+                    pass->init(m_renderPass);
+                }
             }, passInterface);
         }
     }

@@ -361,11 +361,6 @@ namespace VT
     {
 
     }
-
-    void PreprocessPass::onRenderTick(VkCommandBuffer cmd)
-    {
-
-    }
 }
 
 

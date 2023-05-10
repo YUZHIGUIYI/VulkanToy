@@ -137,7 +137,8 @@ namespace VT
 
         VkCommandBuffer& getDrawCommandBuffer(uint32_t index) { return m_drawCmdBuffers.at(index); }
 
-        [[nodiscard]] uint32_t getCurrentFrameIndex() const { return m_presentContext.currentFrame; }
+        // TODO: fix confusing function
+        [[nodiscard]] uint32_t getCurrentFrameIndex() const { return m_presentContext.imageIndex; }
 
         VulkanSwapChain& getSwapChain() { return m_swapChain; }
         std::vector<VkImageView>& getSwapChainImageViews() { return m_swapChain.swapChainImageViews; }

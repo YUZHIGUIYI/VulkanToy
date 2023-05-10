@@ -115,12 +115,18 @@ namespace VT
         // Generate mipmap
         void generateMipmaps();
 
+        // For texture creation
         static Ref<VulkanImage> create(const char *name,
             const VkImageCreateInfo &createInfo,
             VkMemoryPropertyFlags propertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
+        // For texture creation
         static Ref<VulkanImage> create(uint32_t width, uint32_t height, uint32_t layers, VkFormat format,
                                         uint32_t levels = 0, VkImageUsageFlags additionalUsage = 0, const std::string &name = "Temp");
+
+        // For attachment creation
+        static Ref<VulkanImage> create(uint32_t width, uint32_t height, uint32_t layers, uint32_t levels,
+                                        VkFormat format, uint32_t samples, VkImageUsageFlags usage, bool isColorAttachment = true);
 
         static void transitionImageLayout(const ImageMemoryBarrier &imageMemoryBarrier, VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
     };

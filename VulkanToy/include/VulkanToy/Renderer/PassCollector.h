@@ -51,6 +51,32 @@ namespace VT
         [[nodiscard]] const VkPipelineLayout& getPipelineLayout() const { return pbrPipelineLayout; }
     };
 
-    using PassInterface = std::variant<Ref<PreprocessPass>, Ref<SkyboxPass>, Ref<PBRPass>>;
+    class TonemapPass final
+    {
+    private:
+        VkPipeline tonemapPipeline = VK_NULL_HANDLE;
+        VkPipelineLayout tonemapPipelineLayout = VK_NULL_HANDLE;
+        VkDescriptorSetLayout tonemapDescriptorSetLayout = VK_NULL_HANDLE;
+        std::vector<VkDescriptorSet> tonemapDescriptorSets;
+
+    private:
+        void setupDescriptor(const std::vector<VkDescriptorImageInfo> &descriptors);
+        void setupPipeline(VkRenderPass renderPass);
+
+    public:
+        void init(VkRenderPass renderPass, const std::vector<VkDescriptorImageInfo> &descriptors);
+
+        void release();
+
+        // Update descriptor sets if swap chain rebuilt
+        void updateDescriptorSets(const std::vector<VkDescriptorImageInfo> &descriptors);
+
+        void onRenderTick(VkCommandBuffer cmd);
+
+        [[nodiscard]] const VkPipeline& getPipeline() const { return tonemapPipeline; }
+        [[nodiscard]] const VkPipelineLayout& getPipelineLayout() const { return tonemapPipelineLayout; }
+    };
+
+    using PassInterface = std::variant<Ref<PreprocessPass>, Ref<SkyboxPass>, Ref<PBRPass>, Ref<TonemapPass>>;
     using PassCollector = std::vector<PassInterface>;
 }

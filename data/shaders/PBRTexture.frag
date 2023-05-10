@@ -65,7 +65,7 @@ vec3 fresnelSchlickR(float cosTheta, vec3 F0, float roughness)
 void main()
 {
     // Sample input textures to get albedo, roughness and metallic
-    vec3 albedo = pow(texture(albedoTexture, inUV).rgb, vec3(1.0));
+    vec3 albedo = texture(albedoTexture, inUV).rgb;
     float roughness = texture(roughnessTexture, inUV).r;
     float metallic = texture(metallicTexture, inUV).r;
 
@@ -115,6 +115,9 @@ void main()
         // Total ambient lighting contribution
         ambientLighting = diffuseIBL + specularIBL;
     }
+
+    // TODO: have to fix, since gamma corrextion were applied to non-color textures
+    ambientLighting = pow(ambientLighting, vec3(2.2));
 
     // TODO: add direct lighting calculation for analytical lights
 

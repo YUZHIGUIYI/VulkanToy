@@ -37,8 +37,6 @@ namespace VT
         void init(VkRenderPass renderPass);
 
         void release();
-
-        void onRenderTick(VkCommandBuffer cmd);
     };
 }
 
