@@ -10,7 +10,7 @@ namespace VT
 {
     enum class VertexComponent
     {
-        Position, Normal, UV, Tangent
+        Position, Normal, UV, Tangent, Bitangent
     };
 
     // Standard index type
@@ -22,7 +22,8 @@ namespace VT
         glm::vec3 position{ 0.0f, 0.0f, 0.0f };
         glm::vec3 normal{ 0.0f, 1.0f, 0.0f };   // normal to up as default.
         glm::vec2 uv{ 0.0f, 0.0f };
-        glm::vec4 tangent{ 1.0f, 0.0f, 0.0f, 1.0f };
+        glm::vec3 tangent{ 1.0f, 0.0f, 0.0f };
+        glm::vec3 bitangent{ 1.0f, 0.0f, 0.0f };
 
         static VkVertexInputBindingDescription vertexInputBindingDescription;
         static std::vector<VkVertexInputAttributeDescription> vertexInputAttributeDescriptions;
@@ -37,7 +38,7 @@ namespace VT
     };
 
     // Explicit assert struct size avoid some glm macro pad memory to float4
-    static_assert(sizeof(StaticMeshVertex) == (3 + 3 + 2 + 4) * sizeof(float));
+    static_assert(sizeof(StaticMeshVertex) == (3 + 3 + 2 + 3 + 3) * sizeof(float));
 
     // Render bounds of sub-mesh
     struct StaticMeshRenderBound

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <VulkanToy/Scene/Component.h>
+#include <VulkanToy/Scene/Skybox.h>
 #include <VulkanToy/VulkanRHI/GPUResource.h>
 
 namespace VT
@@ -19,6 +20,7 @@ namespace VT
     class Scene
     {
     private:
+        Ref<Skybox> m_skybox;
         std::vector<Ref<Component>> m_components;
         Ref<VulkanBuffer> m_uniformBuffer;
 
@@ -40,12 +42,14 @@ namespace VT
 
         void onRenderTick(VkCommandBuffer cmd, VkPipelineLayout pipelineLayout);
 
+        void onRenderTickSkybox(VkCommandBuffer cmd, VkPipelineLayout pipelineLayout);
+
         std::vector<Ref<Component>>& getComponents()
         {
             return m_components;
         }
 
-        Ref<VulkanBuffer> getUniformBuffer() const
+        [[nodiscard]] Ref<VulkanBuffer> getUniformBuffer() const
         {
             return m_uniformBuffer;
         }

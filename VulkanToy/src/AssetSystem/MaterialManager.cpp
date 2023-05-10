@@ -6,9 +6,9 @@
 
 namespace VT
 {
-    StandardPBRMaterial::StandardPBRMaterial(const UUID &uuid, const std::string &name)
-    : MaterialInterface(uuid, name, MaterialType::StandardPBR)
-    {
-
-    }
+//    StandardPBRMaterial::StandardPBRMaterial(const UUID &uuid, const std::string &name)
+//    : MaterialInterface(uuid, name, MaterialType::StandardPBR)
+//    {
+//
+//    }
 }

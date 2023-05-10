@@ -35,34 +35,59 @@ namespace VT
 
     void AssetSystem::engineAssetInit()
     {
-        // Mesh upload
-        auto GEngineMeshBoxLoad = StaticMeshRawDataLoadTask::buildFromPath(
+        // Engine mesh upload
+        StaticMeshRawDataLoadTask::buildFromPath(
                 "EngineMeshBox",
                 "../data/meshes/Box.obj",
                 EngineMeshes::GBoxUUID,
                 true);
-        auto GEngineMeshSphereLoad = StaticMeshRawDataLoadTask::buildFromPath(
+        StaticMeshRawDataLoadTask::buildFromPath(
                 "EngineMeshSphere",
                 "../data/meshes/Sphere.obj",
                 EngineMeshes::GSphereUUID,
                 true);
 
-        auto GEngineMeshCerberusLoad = StaticMeshRawDataLoadTask::buildFromPath(
+        StaticMeshRawDataLoadTask::buildFromPath(
                 "EngineMeshCerberus",
-                "../data/meshes/cerberus.fbx",
+                "../data/meshes/Cerberus.fbx",
                 EngineMeshes::GCerberusUUID,
+                true);
+
+        StaticMeshRawDataLoadTask::buildFromPath(
+                "EngineMeshSkybox",
+                "../data/meshes/Skybox.obj",
+                EngineMeshes::GSkyBoxUUID,
                 true);
 
         EngineMeshes::GBoxPtrRef = MeshManager::Get()->getMesh(EngineMeshes::GBoxUUID);
         EngineMeshes::GSpherePtrRef = MeshManager::Get()->getMesh(EngineMeshes::GSphereUUID);
         EngineMeshes::GCerberusRef = MeshManager::Get()->getMesh(EngineMeshes::GCerberusUUID);
+        EngineMeshes::GSkyBoxRef = MeshManager::Get()->getMesh(EngineMeshes::GSkyBoxUUID);
 
-        // Texture upload
-        auto GEngineImageAoLoad = TextureRawDataLoadTask::buildFromPath(
-                "../data/textures/cerberus_A.png",
-                EngineImages::GAoImageUUID,
-                VK_FORMAT_R8G8B8A8_SRGB,
-                TextureType::Albedo);
+        // Engine texture upload
+        TextureRawDataLoadTask::buildFromPath(
+            "../data/textures/cerberus_A.png",
+            EngineImages::GAlbedoImageUUID,
+            VK_FORMAT_R8G8B8A8_SRGB,
+            TextureType::Albedo);
+
+        TextureRawDataLoadTask::buildFromPath(
+            "../data/textures/cerberus_N.png",
+            EngineImages::GNormalImageUUID,
+            VK_FORMAT_R8G8B8A8_UNORM,
+            TextureType::Normal);
+
+        TextureRawDataLoadTask::buildFromPath(
+            "../data/textures/cerberus_R.png",
+            EngineImages::GRoughnessImageUUID,
+            VK_FORMAT_R8_UNORM,
+            TextureType::Roughness);
+
+        TextureRawDataLoadTask::buildFromPath(
+            "../data/textures/cerberus_M.png",
+            EngineImages::GMetallicImageUUID,
+            VK_FORMAT_R8_UNORM,
+            TextureType::Metallic);
     }
 
     void AssetSystem::release()

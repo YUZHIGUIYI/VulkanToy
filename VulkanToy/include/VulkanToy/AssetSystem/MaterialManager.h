@@ -11,7 +11,7 @@ namespace VT
 {
     enum class MaterialType
     {
-        StandardPBR,
+        StandardPBR, StandardSkybox
     };
 
     enum class AlphaMode
@@ -32,9 +32,9 @@ namespace VT
         }
     };
 
-    struct StandardPBRMaterial : MaterialInterface
+    struct StandardPBRMaterial
     {
-        AlphaMode alphaMode = AlphaMode::AlphaOpaque;
+//        AlphaMode alphaMode = AlphaMode::AlphaOpaque;
 
         float alphaCutOff = 1.0f;
         float metallicFactor = 1.0f;
@@ -48,10 +48,15 @@ namespace VT
         Ref<VulkanImage> metallicTexture = nullptr;
         Ref<VulkanImage> roughnessTexture = nullptr;
 
-        Ref<VulkanImage> samplerIrradiance = nullptr;
-        Ref<VulkanImage> samplerBRDFLUT = nullptr;
-        Ref<VulkanImage> prefilteredMap = nullptr;
+        inline static Ref<VulkanImage> irradianceTexture = nullptr;
+        inline static Ref<VulkanImage> BRDFLUT = nullptr;
+        inline static Ref<VulkanImage> prefilteredMapTexture = nullptr;
 
-        StandardPBRMaterial(const UUID &uuid, const std::string &name);
+//        StandardPBRMaterial(const UUID &uuid, const std::string &name);
+    };
+
+    struct SkyboxMaterial
+    {
+        inline static Ref<VulkanImage> skyboxTexture = nullptr;
     };
 }

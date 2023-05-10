@@ -4,49 +4,48 @@
 
 #pragma once
 
-#include <VulkanToy/Core/Base.h>
 #include <VulkanToy/Core/RuntimeModule.h>
 #include <VulkanToy/VulkanRHI/GPUResource.h>
+#include <VulkanToy/Renderer/PassCollector.h>
 
 namespace VT
 {
+    struct RenderTarget
+    {
+        Ref<VulkanImage> colorImage = nullptr;
+        Ref<VulkanImage> depthImage = nullptr;
+        VkFormat colorFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+        VkFormat depthFormat = VK_FORMAT_D24_UNORM_S8_UINT;
+        uint32_t width;
+        uint32_t height;
 
-    class Renderer
+        void release();
+
+        static RenderTarget create(uint32_t width, uint32_t height, uint32_t samples, VkFormat colorFormat, VkFormat depthFormat);
+    };
+
+    class Renderer final
     {
     private:
-        struct DepthStencil
-        {
-            VkImage image = VK_NULL_HANDLE;
-            VkImageView imageView = VK_NULL_HANDLE;
-            VkDeviceMemory memory = VK_NULL_HANDLE;
-        } m_depthStencil;
-
         VkRenderPass m_renderPass = VK_NULL_HANDLE;
+        std::vector<RenderTarget> m_renderTargets;
         std::vector<VkFramebuffer> m_frameBuffers;
-        // Descriptor layout
-        VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
-
-        VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
-        VkPipeline m_pipeline = VK_NULL_HANDLE;
+        PassCollector m_passCollector{};
 
     public:
         Renderer();
-        ~Renderer();
 
         void init();
         void release();
 
         void tick(const RuntimeModuleTickData &tickData);
 
-        void rebuildDepthAndFramebuffers();
+        void rebuildRenderTargetsAndFramebuffers();
 
     private:
-        void createSynchronizationPrimitives();
-        void setupDepthStencil();
+        void setupRenderTargets();
         void setupRenderPass();
         void setupFrameBuffers();
-
-        void setupDescriptorLayout();
         void setupPipelines();
     };
 

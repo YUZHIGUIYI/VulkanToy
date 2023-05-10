@@ -12,7 +12,7 @@ namespace VT
 
     enum class TextureType : uint8_t
     {
-        Albedo, Normal, Ao, Metallic, Roughness, Cube, BRDFLUT
+        Albedo, Normal, Ao, Metallic, Roughness, Cube, BRDFLUT, Compute, Irradiance, Prefiltered, HDR
     };
 
     enum class AssetType
@@ -29,7 +29,7 @@ namespace VT
         AssetBinInterface() = default;
         AssetBinInterface(UUID uuid, const std::string &name) : m_uuid(uuid) {}
 
-        const UUID& getBinUUID() const { return m_uuid; }
+        [[nodiscard]] const UUID& getBinUUID() const { return m_uuid; }
 
         virtual AssetType getAssetType() const = 0;
     };
@@ -40,16 +40,12 @@ namespace VT
         UUID m_uuid;
         bool m_isPersistent;
         std::atomic<bool> m_isAsyncLoading{ true };
-        GPUAssetInterface *m_fallback = nullptr;
 
     public:
-        explicit GPUAssetInterface(GPUAssetInterface *fallback, bool isPersistent)
-                : m_fallback(fallback), m_uuid(buildUUID()), m_isPersistent(isPersistent)
+        explicit GPUAssetInterface(bool isPersistent)
+                : m_uuid(buildUUID()), m_isPersistent(isPersistent)
         {
-            if (m_fallback)
-            {
-                VT_CORE_ASSERT(m_fallback->isAssetReady(), "Fallback asset must already load");
-            }
+
         }
 
         virtual ~GPUAssetInterface() = default;

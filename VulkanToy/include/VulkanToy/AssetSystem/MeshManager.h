@@ -22,6 +22,9 @@ namespace VT
 
         extern std::weak_ptr<GPUMeshAsset> GCerberusRef;
         extern const UUID GCerberusUUID;
+
+        extern std::weak_ptr<GPUMeshAsset> GSkyBoxRef;
+        extern const UUID GSkyBoxUUID;
     }
 
     class StaticMeshAssetBin final : public AssetBinInterface
@@ -68,18 +71,15 @@ namespace VT
         uint32_t m_vertexCount = 0;
         uint32_t m_vertexFloat32Count = 0;
 
-        uint32_t m_vertexBufferBindlessIndex = ~0;
-        uint32_t m_indexBufferBindlessIndex = ~0;
-
     public:
         // Immediately build GPU mesh asset
-        GPUMeshAsset(GPUMeshAsset *fallback, bool isPersistent, const std::string &name,
+        GPUMeshAsset(const std::string &name, bool isPersistent,
                     VkDeviceSize vertexSize, size_t singleVertexSize,
                     VkDeviceSize indexSize, VkIndexType indexType);
         // Lazily build GPU mesh asset
-        GPUMeshAsset(GPUMeshAsset *fallback, bool isPersistent, const std::string &name);
+        GPUMeshAsset(const std::string &name, bool isPersistent);
 
-        virtual ~GPUMeshAsset();
+        ~GPUMeshAsset() override;
 
         void release();
 
@@ -103,28 +103,6 @@ namespace VT
         const uint32_t& getIndicesCount() const { return m_indexCount; }
 
         const uint32_t& getVerticesCount() const { return m_vertexCount; }
-
-        GPUMeshAsset* getReadyAsset()
-        {
-            if (isAssetLoading())
-            {
-                VT_CORE_ASSERT(m_fallback, "Loading asset must exist one fallback");
-                return dynamic_cast<GPUMeshAsset *>(m_fallback);
-            }
-            return this;
-        }
-
-        uint32_t getVerticesBindlessIndex()
-        {
-            // TODO
-            return getReadyAsset()->m_vertexBufferBindlessIndex;
-        }
-
-        uint32_t getIndicesBindlessIndex()
-        {
-            // TODO
-            return getReadyAsset()->m_indexBufferBindlessIndex;
-        }
     };
 
     class MeshContext final
@@ -197,7 +175,7 @@ namespace VT
             size_t vertexSize,
             size_t singleVertexSize);
 
-        static Ref<StaticMeshRawDataLoadTask> buildFromPath(const std::string &name,
+        static void buildFromPath(const std::string &name,
             const std::filesystem::path &path,
             const UUID &uuid,
             bool isPersistent);

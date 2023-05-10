@@ -69,6 +69,8 @@ namespace VT
                 VT_CORE_CRITICAL("Fail to allocate vulkan buffer memory");
             }
 
+            m_size = memRequirements.size;
+
             if (data != nullptr)
             {
                 void *mapped;
@@ -127,7 +129,7 @@ namespace VT
             result = vmaMapMemory(VulkanRHI::VMA, m_allocation, &m_mapped);
         } else
         {
-            result = vkMapMemory(VulkanRHI::Device, m_memory, offset, size, 0, &m_mapped);
+            result = vkMapMemory(VulkanRHI::Device, m_memory, offset, m_size, 0, &m_mapped);    // TODO: fix
         }
         return result;
     }
@@ -275,14 +277,6 @@ namespace VT
     {
         RHICheck(vkCreateImage(VulkanRHI::Device, &m_createInfo, nullptr, &m_image));
 
-        m_layouts.resize(m_createInfo.arrayLayers * m_createInfo.mipLevels);
-        m_ownerQueueFamilies.resize(m_layouts.size());
-        for (size_t i = 0; i < m_layouts.size(); ++i)
-        {
-            m_layouts[i] = VK_IMAGE_LAYOUT_UNDEFINED;
-            m_ownerQueueFamilies[i] = VK_QUEUE_FAMILY_IGNORED;
-        }
-
         VkMemoryRequirements memRequirements;
         vkGetImageMemoryRequirements(VulkanRHI::Device, m_image, &memRequirements);
         m_size = memRequirements.size;
@@ -335,25 +329,13 @@ namespace VT
             m_memory = VK_NULL_HANDLE;
         }
 
-        for (auto& pair : m_cacheImageViews)
-        {
-            if (pair.second != VK_NULL_HANDLE)
-                vkDestroyImageView(VulkanRHI::Device, pair.second, nullptr);
-        }
-
         if (m_imageView != VK_NULL_HANDLE)
         {
             vkDestroyImageView(VulkanRHI::Device, m_imageView, nullptr);
         }
 
-        m_cacheImageViews.clear();
         VulkanRHI::minusGPUResourceMemoryUsed(m_size);
         VT_CORE_INFO("Image {0} has been released", m_name);
-    }
-
-    void VulkanImage::setName(const std::string &newName)
-    {
-        // TODO
     }
 
     Ref<VulkanImage> VulkanImage::create(const char *name, const VkImageCreateInfo &createInfo,
@@ -368,6 +350,97 @@ namespace VT
         return vulkanImage;
     }
 
+    Ref<VulkanImage> VulkanImage::create(uint32_t width, uint32_t height, uint32_t layers, VkFormat format,
+                                            uint32_t levels, VkImageUsageFlags additionalUsage, const std::string &name)
+    {
+        VkImageCreateInfo imageCreateInfo{};
+        imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        imageCreateInfo.flags = (layers == 6) ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
+        imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+        imageCreateInfo.format = format;
+        imageCreateInfo.extent = { width, height, 1 };
+        imageCreateInfo.arrayLayers = layers;
+        imageCreateInfo.mipLevels = levels;
+        imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        imageCreateInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        if (additionalUsage != 0)
+        {
+            imageCreateInfo.usage |= additionalUsage;
+        }
+        if (levels > 1)
+        {
+            imageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        }
+        imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+        auto vulkanImage =  VulkanImage::create(
+                name.c_str(), imageCreateInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        VkImageViewType viewType = (layers == 6) ? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D;
+        VkImageSubresourceRange subresourceRange{};
+        subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        subresourceRange.baseMipLevel = 0;
+        subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+        subresourceRange.baseArrayLayer = 0;
+        subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+        vulkanImage->createView(subresourceRange, viewType);
+
+        return vulkanImage;
+    }
+
+    Ref<VulkanImage> VulkanImage::create(uint32_t width, uint32_t height, uint32_t layers, uint32_t levels,
+                                            VkFormat format, uint32_t samples, VkImageUsageFlags usage, bool isColorAttachment)
+    {
+        VkImageCreateInfo imageCreateInfo{};
+        imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        imageCreateInfo.flags = (layers == 6) ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
+        imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+        imageCreateInfo.format = format;
+        imageCreateInfo.extent = { width, height, 1 };
+        imageCreateInfo.mipLevels = levels;
+        imageCreateInfo.arrayLayers = layers;
+        imageCreateInfo.samples = static_cast<VkSampleCountFlagBits>(samples);
+        imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        imageCreateInfo.usage = usage;
+        imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+        auto vulkanImage =  VulkanImage::create(
+                "Attachment", imageCreateInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D;
+        VkImageSubresourceRange subresourceRange{};
+        subresourceRange.levelCount = 1;
+        subresourceRange.layerCount = 1;
+        if (isColorAttachment)
+        {
+            subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        } else
+        {
+            subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+        }
+        vulkanImage->createView(subresourceRange, viewType);
+
+        return vulkanImage;
+    }
+
+    VkImageView VulkanImage::createView(const Ref<VulkanImage>& vulkanImage, VkImageSubresourceRange range)
+    {
+        VkImageViewCreateInfo viewCreateInfo{};
+        viewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewCreateInfo.image = vulkanImage->getImage();
+        viewCreateInfo.viewType = (vulkanImage->getInfo().arrayLayers ==  6) ? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D;
+        viewCreateInfo.format = vulkanImage->getInfo().format;
+        viewCreateInfo.subresourceRange = range;
+
+        VkImageView view;
+        RHICheck(vkCreateImageView(VulkanRHI::Device, &viewCreateInfo, nullptr, &view));
+
+        return view;
+    }
+
     void VulkanImage::createView(VkImageSubresourceRange range, VkImageViewType viewType)
     {
         VkImageViewCreateInfo info{};
@@ -377,7 +450,6 @@ namespace VT
         info.format = m_createInfo.format;
         info.viewType = viewType;
 
-        // TODO: hash fix and unordered_map
         RHICheck(vkCreateImageView(VulkanRHI::Device, &info, nullptr, &m_imageView));
     }
 
@@ -391,69 +463,17 @@ namespace VT
         return m_imageView;
     }
 
-    void VulkanImage::transitionLayout(VkCommandBuffer commandBuffer, VkImageLayout oldLayout, VkImageLayout newLayout, VkImageSubresourceRange range)
+    // Transition image layout
+    void VulkanImage::transitionImageLayout(const ImageMemoryBarrier &imageMemoryBarrier, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask)
     {
-        transitionLayout(commandBuffer, VulkanRHI::get()->getGraphicsFamily(), oldLayout, newLayout, range);
-    }
-
-    void VulkanImage::transitionLayout(VkCommandBuffer commandBuffer, uint32_t newQueueFamily,
-                                        VkImageLayout oldLayout, VkImageLayout newLayout, VkImageSubresourceRange range)
-    {
-        // new
-        VkImageMemoryBarrier barrier{};
-        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        barrier.oldLayout = oldLayout;
-        barrier.newLayout = newLayout;
-        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.image = m_image;
-
-        barrier.subresourceRange = range;
-
-        VkPipelineStageFlags srcStage;
-        VkPipelineStageFlags dstStage;
-        if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+        VulkanRHI::executeImmediatelyMajorGraphics([&imageMemoryBarrier, srcStageMask, dstStageMask] (VkCommandBuffer cmd)
         {
-            barrier.srcAccessMask = 0;
-            barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-            dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-        {
-            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-            srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-        } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
-        {
-            barrier.srcAccessMask = 0;
-            barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        } else
-        {
-            VT_CORE_CRITICAL("Unsupported image layout transition");
-        }
-
-        vkCmdPipelineBarrier(
-                commandBuffer,
-                srcStage,
-                dstStage,
-                0,
-                0,
-                nullptr,
-                0,
-                nullptr,
-                1,
-                &barrier);
-    }
-
-    // TODO: combine two functions
-    void VulkanImage::transitionLayoutImmediately(VkImageLayout oldLayout, VkImageLayout newLayout, VkImageSubresourceRange range)
-    {
-        VulkanRHI::executeImmediatelyMajorGraphics([oldLayout, newLayout, range, this] (VkCommandBuffer cmb) {
-            transitionLayout(cmb, VulkanRHI::get()->getGraphicsFamily(), oldLayout, newLayout, range);
+            vkCmdPipelineBarrier(cmd, srcStageMask, dstStageMask, 0, 0, nullptr,
+                                    0, nullptr, 1, &imageMemoryBarrier.barrier);
         });
     }
 
+    // Copy staging buffer to image
     void VulkanImage::copyFromStagingBuffer(VkBuffer stagingBuffer, uint32_t width, uint32_t height)
     {
         VulkanRHI::executeImmediatelyMajorGraphics([stagingBuffer, width, height, this] (VkCommandBuffer cmd) {
@@ -479,7 +499,7 @@ namespace VT
         });
     }
 
-    // Generate mipmaps - only 2D
+    // Generate mipmaps
     void VulkanImage::generateMipmaps()
     {
         VkFormatProperties formatProperties;
@@ -490,96 +510,71 @@ namespace VT
         }
 
         VulkanRHI::executeImmediatelyMajorGraphics([this] (VkCommandBuffer cmd) {
-            VkImageMemoryBarrier barrier{};
-            barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-            barrier.image = m_image;
-            barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            barrier.subresourceRange.baseArrayLayer = 0;
-            barrier.subresourceRange.layerCount = 1;
-            barrier.subresourceRange.levelCount = 1;
-
             auto mipWidth = static_cast<int32_t>(m_createInfo.extent.width);
             auto mipHeight = static_cast<int32_t>(m_createInfo.extent.height);
-            for (uint32_t i = 1; i < m_createInfo.mipLevels; ++i)
+            for (uint32_t level = 1; level < m_createInfo.mipLevels; ++level, mipWidth /= 2, mipHeight /= 2)
             {
-                barrier.subresourceRange.baseMipLevel = i - 1;
-                barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-                barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-                barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-                barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-                vkCmdPipelineBarrier(cmd,
-                    VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    0,
-                    0,
-                    nullptr,
-                    0,
-                    nullptr,
-                    1,
-                    &barrier);
+                const auto preBlitBarrier = ImageMemoryBarrier{m_image, 0, VK_ACCESS_TRANSFER_WRITE_BIT,
+                                                                VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL }.mipLevels(level, 1);
+                vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr,
+                                        0, nullptr, 1, &preBlitBarrier.barrier);
 
-                VkImageBlit blit{};
-                blit.srcOffsets[0] = { 0, 0, 0 };
-                blit.srcOffsets[1] = { mipWidth, mipHeight, 1 };
-                blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-                blit.srcSubresource.mipLevel = i - 1;
-                blit.srcSubresource.baseArrayLayer = 0;
-                blit.srcSubresource.layerCount = 1;
-                blit.dstOffsets[0] = { 0, 0, 0 };
-                blit.dstOffsets[1] = { (mipWidth > 1 ? mipWidth / 2 : 1), (mipHeight > 1 ? mipHeight / 2 : 1), 1 };
-                blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-                blit.srcSubresource.mipLevel = i;
-                blit.srcSubresource.baseArrayLayer = 0;
-                blit.dstSubresource.layerCount = 1;
+                VkImageBlit region{};
+                region.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, level - 1, 0, m_createInfo.arrayLayers };
+                region.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, level, 0, m_createInfo.arrayLayers };
+                region.srcOffsets[1] = { mipWidth, mipHeight, 1 };
+                region.dstOffsets[1] = { int32_t(mipWidth / 2), int32_t(mipHeight / 2), 1 };
+                vkCmdBlitImage(cmd, m_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                m_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                1, &region, VK_FILTER_LINEAR);
 
-                vkCmdBlitImage(cmd,
-                    m_image,
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    m_image,
-                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    1,
-                    &blit,
-                    VK_FILTER_LINEAR);
-
-                barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-                barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-                barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-                vkCmdPipelineBarrier(cmd,
-                    VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    0,
-                    0,
-                    nullptr,
-                    0,
-                    nullptr,
-                    1,
-                    &barrier);
-
-                if (mipWidth > 1) mipWidth /= 2;
-                if (mipHeight > 1) mipHeight /= 2;
+                const auto postBlitBarrier = ImageMemoryBarrier{m_image, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT,
+                                                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL }.mipLevels(level, 1);
+                vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr,
+                                        0, nullptr, 1, &postBlitBarrier.barrier);
             }
-
-            barrier.subresourceRange.baseMipLevel = m_createInfo.mipLevels - 1;
-            barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-            barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-            vkCmdPipelineBarrier(cmd,
-                VK_PIPELINE_STAGE_TRANSFER_BIT,
-                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                0,
-                0,
-                nullptr,
-                0,
-                nullptr,
-                1,
-                &barrier);
+            // Transition whole mip chain to shader-read-only-layout
+            const auto finalBarrier = ImageMemoryBarrier{ m_image, VK_ACCESS_TRANSFER_WRITE_BIT, 0,
+                                                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+            vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr,
+                                    0, nullptr, 1, &finalBarrier.barrier);
         });
+    }
+
+    ImageMemoryBarrier::ImageMemoryBarrier(VkImage image, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask,
+                                            VkImageLayout oldLayout, VkImageLayout newLayout)
+    {
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.srcAccessMask = srcAccessMask;
+        barrier.dstAccessMask = dstAccessMask;
+        barrier.oldLayout = oldLayout;
+        barrier.newLayout = newLayout;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.image = image;
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+        barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+    }
+
+    ImageMemoryBarrier& ImageMemoryBarrier::aspectMask(VkImageAspectFlags aspectMask)
+    {
+        barrier.subresourceRange.aspectMask = aspectMask;
+        return *this;
+    }
+
+    ImageMemoryBarrier& ImageMemoryBarrier::mipLevels(uint32_t baseMipLevel, uint32_t levelCount)
+    {
+        barrier.subresourceRange.baseMipLevel = baseMipLevel;
+        barrier.subresourceRange.levelCount = levelCount;
+        return *this;
+    }
+
+    ImageMemoryBarrier& ImageMemoryBarrier::arrayLayers(uint32_t baseArrayLayer, uint32_t layerCount)
+    {
+        barrier.subresourceRange.baseArrayLayer = baseArrayLayer;
+        barrier.subresourceRange.layerCount = layerCount;
+        return *this;
     }
 }
 

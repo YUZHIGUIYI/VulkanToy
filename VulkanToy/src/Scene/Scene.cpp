@@ -36,6 +36,10 @@ namespace VT
         sample->scale = glm::vec3{ 5.0f, 5.0f, 5.0f };
         sample->translation = glm::vec3{ 20.0f, -10.0f, 0.0f };
         addComponent(sample);
+
+        // SkyBox
+        m_skybox = CreateRef<Skybox>();
+        m_skybox->init();
     }
 
     void Scene::release()
@@ -44,6 +48,8 @@ namespace VT
         m_uniformBuffer->unmap();
         m_uniformBuffer->release();
         m_uniformBuffer.reset();
+
+        m_skybox->release();
 
         for (auto& component : m_components)
         {
@@ -60,6 +66,8 @@ namespace VT
     {
         updateUniformBuffer();
 
+        m_skybox->tick(tickData);
+
         for (auto& component : m_components)
         {
             component->tick(tickData);
@@ -72,5 +80,10 @@ namespace VT
         {
             component->onRenderTick(cmd, pipelineLayout);
         }
+    }
+
+    void Scene::onRenderTickSkybox(VkCommandBuffer cmd, VkPipelineLayout pipelineLayout)
+    {
+        m_skybox->onRenderTick(cmd, pipelineLayout);
     }
 }

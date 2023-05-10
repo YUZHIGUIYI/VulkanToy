@@ -128,12 +128,17 @@ namespace VT
 
         DescriptorFactory descriptorFactoryBegin();
 
+        void updateDescriptorSet(VkDescriptorSet &dstDescriptorSet, uint32_t dstBinding, VkDescriptorType descriptorType, const std::vector<VkDescriptorImageInfo> &descriptors) const;
+
+        void updateDescriptorSet(VkDescriptorSet &dstDescriptorSet, uint32_t dstBinding, VkDescriptorType descriptorType, const std::vector<VkDescriptorBufferInfo> &descriptors) const;
+
         // Other
         VkPipelineLayout createPipelineLayout(const VkPipelineLayoutCreateInfo& info);
 
         VkCommandBuffer& getDrawCommandBuffer(uint32_t index) { return m_drawCmdBuffers.at(index); }
 
-        [[nodiscard]] uint32_t getCurrentFrameIndex() const { return m_presentContext.currentFrame; }
+        // TODO: fix confusing function
+        [[nodiscard]] uint32_t getCurrentFrameIndex() const { return m_presentContext.imageIndex; }
 
         VulkanSwapChain& getSwapChain() { return m_swapChain; }
         std::vector<VkImageView>& getSwapChainImageViews() { return m_swapChain.swapChainImageViews; }

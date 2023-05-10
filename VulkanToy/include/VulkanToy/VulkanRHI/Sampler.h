@@ -8,16 +8,13 @@
 
 namespace VT
 {
-    class SamplerCache
+    class SamplerCache final
     {
     private:
         std::unordered_map<uint8_t, VkSampler> m_samplerMap;
 
-        VkDescriptorSet m_cacheCommonDescriptor = VK_NULL_HANDLE;
-        VkDescriptorSetLayout m_cacheCommonDescriptorSetLayout = VK_NULL_HANDLE;
-
     private:
-        void initCommonDescriptorSet();
+        void initCommonSamplers();
 
     public:
         SamplerCache() = default;
@@ -26,11 +23,6 @@ namespace VT
 
         bool isContain(uint8_t keyValue);
         VkSampler createSampler(const VkSamplerCreateInfo &info, uint8_t keyValue);
-        VkSampler getSampler(uint8_t keyValue);
-
-        // Common descriptor set
-        // See layout in glsl file
-        VkDescriptorSet getCommonDescriptorSet();
-        VkDescriptorSetLayout getCommonDescriptorSetLayout();
+        VkSampler& getSampler(uint8_t keyValue);
     };
 }

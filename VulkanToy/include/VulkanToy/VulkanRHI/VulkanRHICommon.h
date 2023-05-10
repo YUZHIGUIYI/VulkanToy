@@ -108,6 +108,8 @@ namespace VT
         VkImageSubresourceRange initBasicImageSubresource();
 
         // Sampler create info
+        VkSamplerCreateInfo initSamplerLinear();
+
         VkSamplerCreateInfo initBasicSamplerInfo();
 
         VkSamplerCreateInfo initPointClampEdgeSamplerInfo();

@@ -180,6 +180,22 @@ namespace VT::Initializers
     }
 
     // Sampler create info
+    VkSamplerCreateInfo initSamplerLinear()
+    {
+        VkSamplerCreateInfo info{};
+        info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+
+        info.magFilter = VK_FILTER_LINEAR;
+        info.minFilter = VK_FILTER_LINEAR;
+        info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+
+        info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+
+        return info;
+    }
+
     VkSamplerCreateInfo initBasicSamplerInfo()
     {
         VkSamplerCreateInfo info{};

@@ -14,8 +14,17 @@ namespace VT
 
     namespace EngineImages
     {
-        extern std::weak_ptr<GPUImageAsset> GAoImageAsset;
-        extern const UUID GAoImageUUID;
+        extern std::weak_ptr<GPUImageAsset> GAlbedoImageAsset;
+        extern const UUID GAlbedoImageUUID;
+
+        extern std::weak_ptr<GPUImageAsset> GNormalImageAsset;
+        extern const UUID GNormalImageUUID;
+
+        extern std::weak_ptr<GPUImageAsset> GMetallicImageAsset;
+        extern const UUID GMetallicImageUUID;
+
+        extern std::weak_ptr<GPUImageAsset> GRoughnessImageAsset;
+        extern const UUID GRoughnessImageUUID;
     }
 
     class ImageAssetBin final : public AssetBinInterface
@@ -29,9 +38,6 @@ namespace VT
         ImageAssetBin() = default;
         ImageAssetBin(const std::string &name)
             : AssetBinInterface(buildUUID(), name) {}
-
-        // TODO: finish
-        void buildMipmapDataRGBA8(float cutOff);
 
         [[nodiscard]] AssetType getAssetType() const override
         {
@@ -53,21 +59,14 @@ namespace VT
     {
     private:
         Ref<VulkanImage> m_image = nullptr;
-        uint32_t m_bindlessIndex = ~0;
 
     public:
-        GPUImageAsset(GPUImageAsset* fallback, bool isPersistent, VkFormat format,
-                        const std::string &name, uint32_t mipmapCount,
-                        uint32_t width, uint32_t height, uint32_t depth);
+        GPUImageAsset(const std::string &name, bool isPersistent, VkFormat format,
+            uint32_t layers, uint32_t levels, uint32_t width, uint32_t height);
 
-        virtual ~GPUImageAsset();
+        ~GPUImageAsset() override;
 
         void release();
-
-        uint32_t getBindlessIndex()
-        {
-            return getReadyAsset()->m_bindlessIndex;
-        }
 
         // Prepare image layout when start to upload
         void prepareToUpload(CommandBufferBase &cmd, VkImageSubresourceRange range);
@@ -83,16 +82,6 @@ namespace VT
         auto& getImage() { return m_image->getImage(); }
 
         Ref<VulkanImage> getVulkanImage() const { return m_image; }
-
-        GPUImageAsset* getReadyAsset()
-        {
-            if (isAssetLoading())
-            {
-                VT_CORE_ASSERT(m_fallback, "Loading asset must exit one fallback");
-                return dynamic_cast<GPUImageAsset *>(m_fallback);
-            }
-            return this;
-        }
     };
 
     class TextureContext final
@@ -154,19 +143,17 @@ namespace VT
                         CommandBufferBase &commandBuffer,
                         VulkanBuffer &stageBuffer) override;
 
-        // Build load task from file path - slow
-        static Ref<TextureRawDataLoadTask> buildFromPath(
-                const std::filesystem::path &path,
-                const UUID &uuid,
-                VkFormat format,
-                TextureType textureType);
+        // Build load task from file path - store in Texture Manager
+        static void buildFromPath(
+            const std::filesystem::path &path,
+            const UUID &uuid,
+            VkFormat format,
+            TextureType textureType);
 
-        // Build load task from same value
-        static Ref<TextureRawDataLoadTask> buildFlatTexture(
-                const std::string &name,
-                const UUID &uuid,
-                const glm::uvec4 &color,
-                const glm::uvec3 &size = { 1u, 1u, 1u },
-                VkFormat format = VK_FORMAT_R8G8B8A8_UNORM);
+        // Build load task from file path - staging
+        static Ref<TextureRawDataLoadTask> buildFromPath2(
+            const std::filesystem::path &path,
+            VkFormat format,
+            TextureType textureType);
     };
 }
